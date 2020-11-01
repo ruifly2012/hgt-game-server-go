@@ -1,9 +1,11 @@
 package websocket
 
 import (
+	"context"
 	"fmt"
 	"github.com/orcaman/concurrent-map"
 	"server/app"
+	"server/model/mongo"
 	"server/protobuf"
 )
 
@@ -155,7 +157,8 @@ func End(c *Client, msg interface{}) {
 			fmt.Println("很抱歉，只有mc才具备公布汤底")
 			return
 		}
-		// @todo 保存数据
+		// 保存数据
+		go round.saveRoundData()
 		// 修改房间数据
 		room, _ := RoomManage.GetRoomInfo(c.RoomId)
 		for userId, member := range room.GetRoomMemberMap() {
@@ -188,5 +191,27 @@ func End(c *Client, msg interface{}) {
 
 // 保存游戏对局数据
 func (round *RoundInfo) saveRoundData() {
-	// 开启携程
+	// 记录对局数据
+	roundRecord := make(map[string]interface{})
+	roundRecord["RoomId"] = round.RoomId
+	roundRecord["McUserId"] = round.McUserId
+	roundRecord["QuestionId"] = round.QuestionId
+	memberList := make(map[string]interface{})
+	for userId, member := range round.GetRoundMemberMap() {
+		memberList[userId] = member
+	}
+	roundRecord["Member"] = memberList
+	roundId, _ := mongo.RoundRecord().InsertOne(context.TODO(), roundRecord)
+	// 记录聊天数据
+	chatList := make(map[string]interface{})
+	for messageId, message := range round.GetRoundChatMap() {
+		chatList[messageId] = message
+	}
+	roundChat := map[string]interface{}{
+		"roundId": roundId, // 记录对局的mongoId
+		"roomId": round.RoomId,
+		"chatList": chatList,
+	}
+	mongo.RoundChat().InsertOne(context.TODO(), roundChat)
+	// @todo 记录笔记数据
 }

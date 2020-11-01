@@ -75,3 +75,15 @@ func (round *RoundInfo) GetRoundChat(messageId string) (protobuf.ChatMessageRes,
 
 	return protobuf.ChatMessageRes{}, false
 }
+
+// 获取对局所有聊天数据
+func (round *RoundInfo) GetRoundChatMap() map[string]protobuf.ChatMessageRes {
+	chatList := make(map[string]protobuf.ChatMessageRes)
+
+	// Insert items to temporary map.
+	for item := range round.ChatList.IterBuffered() {
+		chatList[item.Key] = item.Val.(protobuf.ChatMessageRes)
+	}
+
+	return chatList
+}
