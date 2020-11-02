@@ -7,6 +7,7 @@ import (
 	"github.com/gorilla/websocket"
 	"net/http"
 	"reflect"
+	"server/app"
 	"server/dto"
 	"server/protobuf"
 	"server/util"
@@ -21,12 +22,12 @@ type ClientManager struct {
 }
 
 type Client struct {
-	UserDTO       dto.UserDTO
-	socket        *websocket.Conn
-	Send          chan map[string]interface{}
-	InsertTime    string
-	// 房间id
-	RoomId        string
+	UserDTO    dto.UserDTO
+	socket     *websocket.Conn
+	Send       chan map[string]interface{}
+	InsertTime string
+	Protocol   int64
+	RoomId     string
 }
 
 var Manager = ClientManager{
@@ -73,7 +74,7 @@ func (manager *ClientManager) start() {
 		select {
 		case conn := <-manager.register: //新客户端加入
 			// 判断用户是否还在
-			   if client, ok := manager.clients[conn.UserDTO.UserId]; ok {
+			if client, ok := manager.clients[conn.UserDTO.UserId]; ok {
 				client.socket = conn.socket
 			} else {
 				manager.clients[conn.UserDTO.UserId] = conn
@@ -87,18 +88,18 @@ func (manager *ClientManager) start() {
 				fmt.Println("用户离开：" + conn.UserDTO.Username)
 				fmt.Println("当前总用户数量unregister：", len(manager.clients))
 			}
-		//case message := <-manager.broadcast: //读到广播管道数据后的处理
-		//	fmt.Println("当前总用户数量broadcast：", len(manager.clients))
-		//	for _, conn := range manager.clients {
-		//		select {
-		//		case conn.Send <- message: //调用发送给全体客户端
-		//		default:
-		//			// 重新上来之后挤掉了 @todo
-		//			// 关闭连接
-		//			close(conn.Send)
-		//			delete(manager.clients, conn.UserDTO.UserId)
-		//		}
-		//	}
+			//case message := <-manager.broadcast: //读到广播管道数据后的处理
+			//	fmt.Println("当前总用户数量broadcast：", len(manager.clients))
+			//	for _, conn := range manager.clients {
+			//		select {
+			//		case conn.Send <- message: //调用发送给全体客户端
+			//		default:
+			//			// 重新上来之后挤掉了 @todo
+			//			// 关闭连接
+			//			close(conn.Send)
+			//			delete(manager.clients, conn.UserDTO.UserId)
+			//		}
+			//	}
 		}
 	}
 }
@@ -115,9 +116,21 @@ func (manager *ClientManager) start() {
 // 写入管道后激活这个进程
 func (c *Client) write() {
 	defer func() {
-		// 程序退出 关闭链接
-		Manager.unregister <- c
-		c.socket.Close()
+		if err := recover(); err != nil {
+			// 错误记录
+			app.GameServerRecover(err)
+			// 恢复
+			go c.write()
+			// 给用户推送500错误
+			c.Send <- map[string]interface{}{
+				"protocol": -c.Protocol,
+				"code":     500,
+			}
+		} else {
+			// 用户正常退出
+			Manager.unregister <- c
+			c.socket.Close()
+		}
 	}()
 
 	for {
@@ -131,15 +144,24 @@ func (c *Client) write() {
 			protocol, _ := message["protocol"].(int64)
 			code, _ := message["code"].(int)
 			if _, ok := ProtocolHandler[protocol]; ok {
-				childMessage :=  message["data"].(proto.Message)
-				childBytes, _ := proto.Marshal(childMessage)
+				var res []byte
+				if _, ok := message["data"]; ok {
+					childMessage := message["data"].(proto.Message)
+					childBytes, _ := proto.Marshal(childMessage)
 
-				baseMessage := &protobuf.Message{
-					Protocol: protocol,
-					Code: int64(code),
-					Data: childBytes,
+					baseMessage := &protobuf.Message{
+						Protocol: protocol,
+						Code:     int64(code),
+						Data:     childBytes,
+					}
+					res, _ = proto.Marshal(baseMessage)
+				} else {
+					baseMessage := &protobuf.Message{
+						Protocol: protocol,
+						Code:     int64(code),
+					}
+					res, _ = proto.Marshal(baseMessage)
 				}
-				res, _ := proto.Marshal(baseMessage)
 				err := c.socket.WriteMessage(websocket.BinaryMessage, res)
 				if err != nil {
 					// 程序退出 关闭链接
@@ -155,8 +177,21 @@ func (c *Client) write() {
 // 客户端发送数据处理逻辑
 func (c *Client) read() {
 	defer func() {
-		Manager.unregister <- c
-		c.socket.Close()
+		if err := recover(); err != nil {
+			// 错误记录
+			app.GameServerRecover(err)
+			// 给用户推送500错误
+			c.Send <- map[string]interface{}{
+				"protocol": -c.Protocol,
+				"code":     500,
+			}
+			// 恢复
+			go c.read()
+		} else {
+			// 用户正常退出
+			Manager.unregister <- c
+			c.socket.Close()
+		}
 	}()
 
 	for {
@@ -174,12 +209,12 @@ func (c *Client) read() {
 		fmt.Println(baseMessage.Protocol)
 		// 找到对应的协议操作
 		if info, ok := ProtocolHandler[baseMessage.Protocol]; ok {
+			c.Protocol = baseMessage.Protocol
 			infoMessage := reflect.New(info.messageType.Elem()).Interface()
 			proto.Unmarshal(baseMessage.Data, infoMessage.(proto.Message))
 			info.messageHandler(c, infoMessage)
 		} else {
-			fmt.Println("请求错误")
-			//c.Send <- []byte("请求错误")
+			panic("找不到协议对应的结构体")
 		}
 		//激活start 程序 入广播管道
 		//websocketManager.broadcast <- message

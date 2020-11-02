@@ -104,11 +104,19 @@ func JoinRoom(c *Client, msg interface{}) {
 	// 找房间
 	if room, ok := RoomManage.GetRoomInfo(joinRoomReq.RoomId); ok {
 		if room.Status == 3 {
-			fmt.Println("游戏已经开局，不能加入房间")
+			// 游戏已经开局
+			c.Send <- map[string]interface{}{
+				"protocol": ProtocolJoinRoomRes,
+				"code": CodeRoomGaming,
+			}
 			return
 		}
 		if int(room.Max) <= room.Member.Count() {
-			fmt.Println("房间人数上限，不能加入房间")
+			// 房间人数上限，不能加入房间
+			c.Send <- map[string]interface{}{
+				"protocol": ProtocolJoinRoomRes,
+				"code": CodeRoomAlreadyMax,
+			}
 			return
 		}
 		// 用户进入房间 将当前用户roomId 设置成这个
@@ -152,12 +160,15 @@ func JoinRoom(c *Client, msg interface{}) {
 						},
 					}
 				}
-			} else {
-				fmt.Println("用户可能掉线/离开")
 			}
 		}
 	} else {
-		fmt.Println("没有找到房间")
+		// 房间不存在
+		c.Send <- map[string]interface{}{
+			"protocol": ProtocolJoinRoomRes,
+			"code": CodeRoomNotExist,
+		}
+		return
 	}
 }
 

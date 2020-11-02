@@ -51,7 +51,7 @@ func LoadProtocol() {
 	RegisterMessage(ProtocolCreateRoomRes, &protobuf.CreateRoomRes{}, nil)
 	// 加入房间
 	RegisterMessage(ProtocolJoinRoomReq, &protobuf.JoinRoomReq{}, JoinRoom)
-	RegisterMessage(ProtocolJoinRoomRes, &protobuf.JoinRoomReq{}, nil)
+	RegisterMessage(ProtocolJoinRoomRes, &protobuf.JoinRoomRes{}, nil)
 	// 离开房间
 	RegisterMessage(ProtocolLeaveRoomReq, &protobuf.LeaveRoomReq{}, LeaveRoom)
 	RegisterMessage(ProtocolLeaveRoomRes, &protobuf.LeaveRoomRes{}, nil)
