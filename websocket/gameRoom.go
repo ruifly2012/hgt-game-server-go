@@ -263,7 +263,8 @@ func Prepare(c *Client, msg interface{}) {
 			// mc准备 则考虑游戏是否要开始
 			if c.UserDTO.UserId == room.McUserId {
 				var roomMemberCount = room.Member.Count()
-				if roomMemberCount < 3 {
+				// @todo
+				if roomMemberCount < 0 {
 					// 人数太少
 					c.Send <- map[string]interface{}{
 						"protocol": -ProtocolPrepareRes,
@@ -292,7 +293,8 @@ func Prepare(c *Client, msg interface{}) {
 				var questionResList []*protobuf.QuestionRes
 				// 问题列表数据
 				var questionList = make([]model.Question, 0)
-				if len(userIds) > 0 {
+				// @todo
+				if len(userIds) >= 0 {
 					// 获取题目
 					questionLog := make([]model.UserQuestionLog, 0)
 					app.DB.Cols("question_id").In("user_id", userIds).Find(&questionLog)
@@ -471,6 +473,21 @@ func ChangeMC(sourceOwnerUserId string, roomId string) {
 func TestMember(room RoomInfo) {
 	for _, info := range room.GetRoomMemberMap() {
 		jsons, _ := json.Marshal(info)
+		fmt.Println(string(jsons))
+	}
+}
+
+func Test(c *Client, msg interface{}) {
+	fmt.Println("房间所有数据")
+	for _, roomInterface := range RoomManage.Items() {
+		room := roomInterface.(RoomInfo)
+		jsons, _ := json.Marshal(room)
+		fmt.Println(string(jsons))
+	}
+	fmt.Println("所有对局数据")
+	for _, roundInterface := range RoundManage.Items() {
+		round := roundInterface.(RoundInfo)
+		jsons, _ := json.Marshal(round)
 		fmt.Println(string(jsons))
 	}
 }

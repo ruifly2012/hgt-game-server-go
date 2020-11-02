@@ -14,13 +14,15 @@
     <button>2008 发送聊天内容</button>
     <button>2009 mc回答内容</button>
     <button>2010 游戏结束</button>
+    <button>2011 选题</button>
+    <button>3000 选题</button>
     <br>
     protocol:<input type="number" id="protocol" value="2001"> <br>
     roomId:<input type="text" id="roomId" value=""> <br>
     messageContent:<input type="text" id="messageContent" value=""> <br>
     messageId:<input type="text" id="messageId" value=""> <br>
     answer:<input type="number" id="answer" value=""> <br>
-    questionId:<input type="text" id="questionId" value=""> <br>
+    questionId:<input type="text" id="questionId" value="1234561"> <br>
     <button id="sendBtn">发送</button>
     <div id="recv"></div>
     <script src="protobuf.js"></script>
@@ -131,6 +133,10 @@
                         case "2011": // 选择问题
                             var childMessage = root.lookupType("SoupMessage.SelectQuestionReq");
                             var childData = childMessage.fromObject({id: questionId})
+                            break;
+                        case "3000": // 测试数据
+                            var childMessage = root.lookupType("SoupMessage.CreateRoomReq");
+                            var childData = childMessage.fromObject({ password: "passssss", name: "dddddddddddd", max: 8 })
                             break;
                     }
 

@@ -77,6 +77,9 @@ func LoadProtocol() {
 
 	// 房间推送消息
 	RegisterMessage(ProtocolRoomPush, &protobuf.RoomPush{}, nil)
+
+	// 测试
+	RegisterMessage(3000, &protobuf.CreateRoomReq{}, Test)
 }
 
 // 注册协议对应方法
