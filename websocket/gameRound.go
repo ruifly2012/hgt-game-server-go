@@ -96,12 +96,14 @@ func Chat(c *Client, msg interface{}) {
 						},
 					},
 				}
-			} else {
-				fmt.Println("消息推送 这个人已经掉线")
 			}
 		}
 	} else {
-		fmt.Println("发送聊天时 对局不存在")
+		// 对局不存在
+		c.Send <- map[string]interface{}{
+			"protocol": ProtocolChatRes,
+			"code": CodeRoundNotExist,
+		}
 	}
 }
 
@@ -111,7 +113,11 @@ func Answer(c *Client, msg interface{}) {
 	if round, ok := RoundManage.GetRoundInfo(c.RoomId); ok {
 		// 判断是否时mc
 		if round.McUserId != c.UserDTO.UserId {
-			fmt.Println("很抱歉，只有mc才具备回复")
+			//只有mc才具备回复
+			c.Send <- map[string]interface{}{
+				"protocol": ProtocolAnswerRes,
+				"code": CodeJustMcToReply,
+			}
 			return
 		}
 		if _, ok := AnswerStatusManage[answerReq.Answer]; ok {
@@ -133,18 +139,30 @@ func Answer(c *Client, msg interface{}) {
 								},
 							},
 						}
-					} else {
-						fmt.Println("消息推送 这个人已经掉线")
 					}
 				}
 			} else {
-				fmt.Println("mc 回答的消息不存在")
+				// 回答的消息不存在
+				c.Send <- map[string]interface{}{
+					"protocol": ProtocolAnswerRes,
+					"code": CodeChatNotExist,
+				}
+				return
 			}
 		} else {
-			fmt.Println("mc 回答的结果超出预期")
+			// 答案类型不存在
+			c.Send <- map[string]interface{}{
+				"protocol": ProtocolAnswerRes,
+				"code": CodeAnswerTypeWrong,
+			}
+			return
 		}
 	} else {
-		fmt.Println("mc 回答时对局不存在")
+		// 对局不存在
+		c.Send <- map[string]interface{}{
+			"protocol": ProtocolChatRes,
+			"code": CodeRoundNotExist,
+		}
 	}
 }
 
@@ -154,7 +172,11 @@ func End(c *Client, msg interface{}) {
 	if round, ok := RoundManage.GetRoundInfo(c.RoomId); ok {
 		// 判断是否时mc
 		if round.McUserId != c.UserDTO.UserId {
-			fmt.Println("很抱歉，只有mc才具备公布汤底")
+			// 只有mc才具备公布汤底
+			c.Send <- map[string]interface{}{
+				"protocol": ProtocolEndRes,
+				"code": CodeEndGameFailure,
+			}
 			return
 		}
 		// 保存数据
@@ -182,8 +204,6 @@ func End(c *Client, msg interface{}) {
 						Question:    &room.Question,
 					},
 				}
-			} else {
-				fmt.Println("用户可能掉线/离开")
 			}
 		}
 	}

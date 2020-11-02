@@ -88,6 +88,8 @@ const (
 	// ----------- 回答相关
 	// 答案类型不存在
 	CodeAnswerTypeWrong = 21100
+	// 不是mc 不具备权限
+	CodeJustMcToReply = 21101
 
 	// ----------- 题目相关
 	// 题目不存在
