@@ -124,7 +124,7 @@ func (c *Client) write() {
 			// 给用户推送500错误
 			c.Send <- map[string]interface{}{
 				"protocol": -c.Protocol,
-				"code":     500,
+				"code":     CodeError,
 			}
 		} else {
 			// 用户正常退出
@@ -183,7 +183,7 @@ func (c *Client) read() {
 			// 给用户推送500错误
 			c.Send <- map[string]interface{}{
 				"protocol": -c.Protocol,
-				"code":     500,
+				"code":     CodeError,
 			}
 			// 恢复
 			go c.read()

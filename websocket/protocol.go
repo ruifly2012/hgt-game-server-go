@@ -32,6 +32,9 @@ const ProtocolAnswerRes int64 = -2009
 // 游戏结束
 const ProtocolEndReq int64 = 2010
 const ProtocolEndRes int64 = -2010
+// 选择问题
+const ProtocolSelectQuestionReq int64 = 2011
+const ProtocolSelectQuestionRes int64 = -2011
 
 // 房间推送消息
 const ProtocolRoomPush int64 = 2901
@@ -68,6 +71,9 @@ func LoadProtocol() {
 	// 游戏结束
 	RegisterMessage(ProtocolEndReq, &protobuf.EndReq{}, End)
 	RegisterMessage(ProtocolEndRes, &protobuf.EndRes{}, nil)
+	// 选择问题
+	RegisterMessage(ProtocolSelectQuestionReq, &protobuf.SelectQuestionReq{}, SelectQuestion)
+	RegisterMessage(ProtocolSelectQuestionRes, &protobuf.SelectQuestionRes{}, nil)
 
 	// 房间推送消息
 	RegisterMessage(ProtocolRoomPush, &protobuf.RoomPush{}, nil)

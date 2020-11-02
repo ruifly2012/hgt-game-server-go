@@ -1,6 +1,8 @@
 package websocket
 
 const (
+	CodeSuccess = 200
+	CodeError = 500
 	// ---------- 创建房间相关
 	// 房间不合法
 	CodeCreateRoomNameIllegal = 20001
@@ -8,6 +10,8 @@ const (
 	CodeCreateRoomMaxIllegal = 20002
 	// 房间创建失败
 	CodeCreateRoomFailure = 20003
+	// 已经创建房间 退出即可
+	CodeCreateRoomExist = 20004
 
 	// ---------- 房间相关
 	// 房间不存在
@@ -42,6 +46,8 @@ const (
 	CodeRoomPrepareFailure = 20500
 	// 还有玩家没有准备
 	CodeRoomSomeMemberNotPrepare = 20501
+	// 人数太少 最少三个人
+	CodeRoomMaxTooLittle = 20502
 
 	// ---------- 踢人相关
 	// 踢人失败
@@ -79,7 +85,13 @@ const (
 	// 成员不是房主
 	CodeMemberNotOwner = 21002
 
-	// 回答相关
+	// ----------- 回答相关
 	// 答案类型不存在
 	CodeAnswerTypeWrong = 21100
+
+	// ----------- 题目相关
+	// 题目不存在
+	CodeQuestionExist = 21200
+	// 不是mc 没有权限选题
+	CodeNotRankToSelectQuestion = 21201
 )

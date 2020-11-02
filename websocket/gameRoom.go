@@ -5,23 +5,23 @@ import (
 	"fmt"
 	"github.com/orcaman/concurrent-map"
 	"server/app"
+	model "server/model/mysql"
 	"server/protobuf"
 )
 
-// 玩家状态 0:闲置 1:在房间 2:准备中 3:游戏中
+// 玩家状态 1:闲置 2:在房间 3:准备中 4:游戏中
 const (
-	MemberStatusEmpty     = 0
-	MemberStatusInRoom    = 1
-	MemberStatusPreparing = 2
-	MemberStatusGaming    = 3
+	MemberStatusEmpty     = 1
+	MemberStatusInRoom    = 2
+	MemberStatusPreparing = 3
+	MemberStatusGaming    = 4
 )
 
-// 房间状态 0：闲置 1：待定 2：准备中 3：游戏中
+// 房间状态 1：准备中 2：选题中 3：游戏中
 const (
-	RoomStatusEmpty     = 0
-	RoomStatusHoldOn    = 1
-	RoomStatusPreparing = 2
-	RoomStatusGaming    = 3
+	RoomStatusPreparing      = 1
+	RoomStatusSelectQuestion = 2
+	RoomStatusGaming         = 3
 )
 
 type RoomInfo struct {
@@ -35,7 +35,7 @@ type RoomInfo struct {
 	McUserId string
 	// 房间人数限制
 	Max uint32
-	// 房间状态 0：闲置 1：待定 2：准备中 3：游戏中
+	// 房间状态 0：闲置 1：准备中 2：选题中 3：游戏中
 	Status uint8
 	// 问题
 	Question protobuf.QuestionRes
@@ -53,7 +53,23 @@ var RoomManage = RoomManageStruct{
 
 // 创建房间
 func CreateRoom(c *Client, msg interface{}) {
+	if c.RoomId != "" {
+		// 判断当前用户是否已经处于房间
+		c.Send <- map[string]interface{}{
+			"protocol": ProtocolCreateRoomRes,
+			"code":     CodeCreateRoomExist,
+		}
+		return
+	}
 	createRoomReq := msg.(*protobuf.CreateRoomReq)
+	if createRoomReq.Max == 0 || createRoomReq.Max > 10 {
+		// 房间上限人数错误
+		c.Send <- map[string]interface{}{
+			"protocol": ProtocolCreateRoomRes,
+			"code":     CodeCreateRoomMaxIllegal,
+		}
+		return
+	}
 	roomId, _ := app.GenerateSnowflakeID()
 	var Member = cmap.New()
 	Member.Set(c.UserDTO.UserId, protobuf.RoomMemberSeatRes{
@@ -74,11 +90,6 @@ func CreateRoom(c *Client, msg interface{}) {
 		Max:         createRoomReq.Max,
 		Status:      RoomStatusPreparing,
 		Member:      Member,
-		Question: protobuf.QuestionRes{
-			Id:       "questionId",
-			Question: "我是汤面",
-			Content:  "我是汤底",
-		},
 	}
 	RoomManage.Set(roomId, room)
 	TestMember(room)
@@ -87,7 +98,7 @@ func CreateRoom(c *Client, msg interface{}) {
 	c.RoomId = roomId
 	c.Send <- map[string]interface{}{
 		"protocol": ProtocolCreateRoomRes,
-		"code":     200,
+		"code":     CodeSuccess,
 		"data": &protobuf.CreateRoomRes{
 			Room: &protobuf.RoomPush{
 				Status:      RoomStatusPreparing,
@@ -103,11 +114,11 @@ func JoinRoom(c *Client, msg interface{}) {
 	joinRoomReq := msg.(*protobuf.JoinRoomReq)
 	// 找房间
 	if room, ok := RoomManage.GetRoomInfo(joinRoomReq.RoomId); ok {
-		if room.Status == 3 {
+		if room.Status == RoomStatusGaming {
 			// 游戏已经开局
 			c.Send <- map[string]interface{}{
 				"protocol": ProtocolJoinRoomRes,
-				"code": CodeRoomGaming,
+				"code":     CodeRoomGaming,
 			}
 			return
 		}
@@ -115,7 +126,7 @@ func JoinRoom(c *Client, msg interface{}) {
 			// 房间人数上限，不能加入房间
 			c.Send <- map[string]interface{}{
 				"protocol": ProtocolJoinRoomRes,
-				"code": CodeRoomAlreadyMax,
+				"code":     CodeRoomAlreadyMax,
 			}
 			return
 		}
@@ -141,7 +152,7 @@ func JoinRoom(c *Client, msg interface{}) {
 					// 当前加入的用户，推送整个 roomPush
 					client.Send <- map[string]interface{}{
 						"protocol": ProtocolRoomPush,
-						"code":     200,
+						"code":     CodeSuccess,
 						"data": &protobuf.RoomPush{
 							Status:      RoomStatusPreparing,
 							SeatsChange: room.GetRoomMemberList(),
@@ -152,7 +163,7 @@ func JoinRoom(c *Client, msg interface{}) {
 					// 只推送当前用户的信息给其他用户
 					client.Send <- map[string]interface{}{
 						"protocol": ProtocolRoomPush,
-						"code":     200,
+						"code":     CodeSuccess,
 						"data": &protobuf.RoomPush{
 							SeatsChange: []*protobuf.RoomMemberSeatRes{
 								&newUser,
@@ -166,7 +177,7 @@ func JoinRoom(c *Client, msg interface{}) {
 		// 房间不存在
 		c.Send <- map[string]interface{}{
 			"protocol": ProtocolJoinRoomRes,
-			"code": CodeRoomNotExist,
+			"code":     CodeRoomNotExist,
 		}
 		return
 	}
@@ -176,59 +187,70 @@ func JoinRoom(c *Client, msg interface{}) {
 func LeaveRoom(c *Client, msg interface{}) {
 	var roomId = c.RoomId
 	if roomId == "" {
-		fmt.Println("当前用户没有处于房间")
-	} else {
-		// 找房间
-		if room, ok := RoomManage.GetRoomInfo(roomId); ok {
-			// 找群里面是否有这个用户
-			if deleteUser, ok := room.GetRoomMember(c.UserDTO.UserId); ok {
-				lastOneFlag := false
-				// 判断当前成员列表是不是最后一个人
-				if len(room.Member) == 1 {
-					lastOneFlag = true
+		// 当前用户没有处于房间
+		c.Send <- map[string]interface{}{
+			"protocol": -ProtocolLeaveRoomRes,
+			"code":     CodeRoomMemberNotExist,
+		}
+		return
+	}
+	// 找房间
+	if room, ok := RoomManage.GetRoomInfo(roomId); ok {
+		// 找群里面是否有这个用户
+		if deleteUser, ok := room.GetRoomMember(c.UserDTO.UserId); ok {
+			lastOneFlag := false
+			// 判断当前成员列表是不是最后一个人
+			if len(room.Member) == 1 {
+				lastOneFlag = true
+			}
+			fmt.Println("用户：" + c.UserDTO.Username + " 离开了房间：" + roomId)
+			// 离开的人的房间置为空
+			c.RoomId = ""
+			room.Member.Remove(c.UserDTO.UserId)
+			TestMember(room)
+			if lastOneFlag {
+				// 房间最后一个人退出，房间销毁
+				RoomManage.Remove(roomId)
+			} else {
+				if room.OwnerUserId == deleteUser.Aid {
+					// 离开的人是房主 切换房主
+					ChangeOwner(deleteUser.Aid, roomId)
 				}
-				fmt.Println("用户：" + c.UserDTO.Username + " 离开了房间：" + roomId)
-				// 离开的人的房间置为空
-				c.RoomId = ""
-				room.Member.Remove(c.UserDTO.UserId)
-				TestMember(room)
-				if lastOneFlag {
-					// 删除房间数据
-					fmt.Println("房间最后一个人退出，房间销毁")
-					RoomManage.Remove(roomId)
-				} else {
-					if room.OwnerUserId == deleteUser.Aid {
-						// 离开的人是房主 切换房主
-						ChangeOwner(deleteUser.Aid, roomId)
-					}
-					if room.McUserId == deleteUser.Aid {
-						// 离开的人是MC 切换MC
-						ChangeMC(deleteUser.Aid, roomId)
-					}
-					// 并非最后一个人 给其他人推送当前人离开数据
-					for _, info := range room.GetRoomMemberMap() {
-						if client, ok := Manager.clients[info.Aid]; ok {
-							deleteUser.Leave = true
-							client.Send <- map[string]interface{}{
-								"protocol": ProtocolRoomPush,
-								"code":     200,
-								"data": &protobuf.RoomPush{
-									SeatsChange: []*protobuf.RoomMemberSeatRes{
-										&deleteUser,
-									},
+				if room.McUserId == deleteUser.Aid {
+					// 离开的人是MC 切换MC
+					ChangeMC(deleteUser.Aid, roomId)
+				}
+				// 并非最后一个人 给其他人推送当前人离开数据
+				for _, info := range room.GetRoomMemberMap() {
+					if client, ok := Manager.clients[info.Aid]; ok {
+						deleteUser.Leave = true
+						client.Send <- map[string]interface{}{
+							"protocol": ProtocolRoomPush,
+							"code":     CodeSuccess,
+							"data": &protobuf.RoomPush{
+								SeatsChange: []*protobuf.RoomMemberSeatRes{
+									&deleteUser,
 								},
-							}
-						} else {
-							fmt.Println("这个人不在不推送")
+							},
 						}
 					}
 				}
-			} else {
-				fmt.Println("用户不在房间里面")
 			}
 		} else {
-			fmt.Println("房间不存在")
+			// 用户不在房间里面
+			c.Send <- map[string]interface{}{
+				"protocol": -ProtocolLeaveRoomRes,
+				"code":     CodeRoomMemberNotExist,
+			}
+			return
 		}
+	} else {
+		// 房间不存在
+		c.Send <- map[string]interface{}{
+			"protocol": -ProtocolLeaveRoomRes,
+			"code":     CodeRoomNotExist,
+		}
+		return
 	}
 }
 
@@ -240,25 +262,68 @@ func Prepare(c *Client, msg interface{}) {
 		if info, ok := room.GetRoomMember(c.UserDTO.UserId); ok {
 			// mc准备 则考虑游戏是否要开始
 			if c.UserDTO.UserId == room.McUserId {
+				var roomMemberCount = room.Member.Count()
+				if roomMemberCount < 3 {
+					// 人数太少
+					c.Send <- map[string]interface{}{
+						"protocol": -ProtocolPrepareRes,
+						"code":     CodeRoomMaxTooLittle,
+					}
+					return
+				}
+				// 创建用户ids 长度 - mc
+				var userIds = make([]string, roomMemberCount-1)
 				// 判断用户是否都准备完毕
-				for _, member := range room.GetRoomMemberMap() {
+				for userId, member := range room.GetRoomMemberMap() {
 					if member.Status != MemberStatusPreparing {
-						fmt.Println("单独给mc推送消息：" + member.AvaName + ": 玩家未准备")
+						// 玩家未准备
+						c.Send <- map[string]interface{}{
+							"protocol": -ProtocolPrepareRes,
+							"code":     CodeRoomSomeMemberNotPrepare,
+						}
 						return
 					}
+					if userId != room.McUserId {
+						userIds = append(userIds, userId)
+					}
+				}
+				fmt.Println("游戏开始选题")
+				// 题目列表
+				var questionResList []*protobuf.QuestionRes
+				// 问题列表数据
+				var questionList = make([]model.Question, 0)
+				if len(userIds) > 0 {
+					// 获取题目
+					questionLog := make([]model.UserQuestionLog, 0)
+					app.DB.Cols("question_id").In("user_id", userIds).Find(&questionLog)
+					var unQuestionIds = make([]string, 0)
+					for _, log := range questionLog {
+						unQuestionIds = append(unQuestionIds, log.QuestionId)
+					}
+					app.DB.NotIn("question_id", unQuestionIds).Limit(10).Find(&questionList)
+				}
+				// 处理问题列表
+				for _, question := range questionList {
+					questionResList = append(questionResList, &protobuf.QuestionRes{
+						Id:       question.QuestionId,
+						Title:    question.Title,
+						Question: question.Description,
+						Content:  question.Content,
+					})
 				}
 				// 所有玩家已经准备完毕 推送玩家进入游戏
 				for userId, info := range room.GetRoomMemberMap() {
 					// 将玩家改成游戏中状态
 					info.Status = MemberStatusGaming
 					room.Member.Set(userId, info)
-					fmt.Println("游戏开始")
+					RoomManage.Set(c.RoomId, room)
 					if client, ok := Manager.clients[userId]; ok {
 						client.Send <- map[string]interface{}{
 							"protocol": ProtocolRoomPush,
-							"code":     200,
+							"code":     CodeSuccess,
 							"data": &protobuf.RoomPush{
-								Status: RoomStatusGaming,
+								Status:          RoomStatusSelectQuestion,
+								SelectQuestions: questionResList,
 							},
 						}
 					}
@@ -275,13 +340,14 @@ func Prepare(c *Client, msg interface{}) {
 				}
 				// 更新当前用户信息
 				room.Member.Set(c.UserDTO.UserId, info)
+				RoomManage.Set(c.RoomId, room)
 				// 推送消息
 				for _, info := range room.GetRoomMemberMap() {
 					if client, ok := Manager.clients[info.Aid]; ok {
 						if info.Aid != c.UserDTO.UserId {
 							client.Send <- map[string]interface{}{
 								"protocol": ProtocolRoomPush,
-								"code":     200,
+								"code":     CodeSuccess,
 								"data": &protobuf.RoomPush{
 									SeatsChange: []*protobuf.RoomMemberSeatRes{
 										&info,
@@ -294,10 +360,86 @@ func Prepare(c *Client, msg interface{}) {
 			}
 			TestMember(room)
 		} else {
-			fmt.Println("没有在房间里面")
+			// 用户不在房间里面
+			c.Send <- map[string]interface{}{
+				"protocol": -ProtocolLeaveRoomRes,
+				"code":     CodeRoomMemberNotExist,
+			}
+			return
 		}
 	} else {
-		fmt.Println("没有找到房间")
+		// 房间不存在
+		c.Send <- map[string]interface{}{
+			"protocol": -ProtocolLeaveRoomRes,
+			"code":     CodeRoomNotExist,
+		}
+		return
+	}
+}
+
+// 选题
+func SelectQuestion(c *Client, msg interface{}) {
+	selectQuestionReq := msg.(*protobuf.SelectQuestionReq)
+	// 找房间
+	if room, ok := RoomManage.GetRoomInfo(c.RoomId); ok {
+		// 判断是否mc
+		if room.McUserId != c.UserDTO.UserId {
+			c.Send <- map[string]interface{}{
+				"protocol": ProtocolSelectQuestionRes,
+				"code":     CodeNotRankToSelectQuestion,
+			}
+			return
+		}
+		if room.Status == RoomStatusGaming {
+			// 游戏已经开局
+			c.Send <- map[string]interface{}{
+				"protocol": ProtocolSelectQuestionRes,
+				"code":     CodeRoomGaming,
+			}
+			return
+		}
+		// 查找问题是否存在
+		question := &model.Question{QuestionId: selectQuestionReq.Id}
+		exist, _ := app.DB.Get(question)
+		if !exist {
+			// 题库不存在
+			c.Send <- map[string]interface{}{
+				"protocol": ProtocolSelectQuestionRes,
+				"code":     CodeQuestionExist,
+			}
+			return
+		}
+		room.Question = protobuf.QuestionRes{
+			Id:       question.QuestionId,
+			Title:    question.Title,
+			Question: question.Description,
+			Content:  question.Content,
+		}
+		// 游戏开始
+		room.Status = RoomStatusGaming
+		RoomManage.Set(c.RoomId, room)
+		TestMember(room)
+		// 通知群里面所有人
+		for _, info := range room.GetRoomMemberMap() {
+			if client, ok := Manager.clients[info.Aid]; ok {
+				client.Send <- map[string]interface{}{
+					"protocol": ProtocolRoomPush,
+					"code":     CodeSuccess,
+					"data": &protobuf.RoomPush{
+						Status:   RoomStatusGaming,
+						RoomId:   c.RoomId,
+						Question: &room.Question,
+					},
+				}
+			}
+		}
+	} else {
+		// 房间不存在
+		c.Send <- map[string]interface{}{
+			"protocol": ProtocolSelectQuestionRes,
+			"code":     CodeRoomNotExist,
+		}
+		return
 	}
 }
 

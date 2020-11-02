@@ -20,11 +20,12 @@
     messageContent:<input type="text" id="messageContent" value=""> <br>
     messageId:<input type="text" id="messageId" value=""> <br>
     answer:<input type="number" id="answer" value=""> <br>
+    questionId:<input type="text" id="questionId" value=""> <br>
     <button id="sendBtn">发送</button>
     <div id="recv"></div>
     <script src="protobuf.js"></script>
     <script type="text/javascript">
-        // var websocket = new WebSocket("wss://api.sunanzhi.com/wss");
+        // var websocket = new WebSocket("wss://api.sunanzhi.com/wss?Authorization=9b27e5f0-c24b-472a-890b-18a84d97a139");
         var buffer;
         // sunanzhi
         var websocket = new WebSocket("ws://localhost:8899/wss?Authorization=9b27e5f0-c24b-472a-890b-18a84d97a139");
@@ -73,6 +74,9 @@
                         case -2010: // 游戏结束
                             var resChildMessage = root.lookupType("SoupMessage.EndRes");
                             break;
+                        case -2011: // 选题
+                            var resChildMessage = root.lookupType("SoupMessage.SelectQuestionRes");
+                            break;
                         case 2901: // 接收房间消息
                             var resChildMessage = root.lookupType("SoupMessage.RoomPush");
                             break;
@@ -94,10 +98,11 @@
                     var messageContent = document.getElementById("messageContent").value
                     var messageId = document.getElementById("messageId").value
                     var answer = document.getElementById("answer").value
+                    var questionId = document.getElementById("questionId").value
                     switch (protocol) {
                         case "2001": // 创建房间
                             var childMessage = root.lookupType("SoupMessage.CreateRoomReq");
-                            var childData = childMessage.fromObject({ password: "passssss", name: "dddddddddddd", max: 21 })
+                            var childData = childMessage.fromObject({ password: "passssss", name: "dddddddddddd", max: 8 })
                             break;
                         case "2003": // 加入房间
                             var childMessage = root.lookupType("SoupMessage.JoinRoomReq");
@@ -122,6 +127,10 @@
                         case "2010": // 游戏结束
                             var childMessage = root.lookupType("SoupMessage.EndReq");
                             var childData = childMessage.fromObject({})
+                            break;
+                        case "2011": // 选择问题
+                            var childMessage = root.lookupType("SoupMessage.SelectQuestionReq");
+                            var childData = childMessage.fromObject({id: questionId})
                             break;
                     }
 
