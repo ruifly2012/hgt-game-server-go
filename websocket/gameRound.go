@@ -234,4 +234,7 @@ func (round *RoundInfo) saveRoundData() {
 	}
 	mongo.RoundChat().InsertOne(context.TODO(), roundChat)
 	// @todo 记录笔记数据
+
+	// 删除对局数据
+	RoundManage.Remove(round.RoomId)
 }
