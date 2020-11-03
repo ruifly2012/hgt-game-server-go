@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"reflect"
 	"server/app"
-	"server/dto"
 	"server/protobuf"
 	"server/util"
 	"time"
@@ -22,12 +21,10 @@ type ClientManager struct {
 }
 
 type Client struct {
-	UserDTO    dto.UserDTO
+	UserId     string
 	socket     *websocket.Conn
 	Send       chan map[string]interface{}
-	InsertTime string
 	Protocol   int64
-	RoomId     string
 }
 
 var Manager = ClientManager{
@@ -57,11 +54,19 @@ func Server(c *gin.Context) {
 
 	//初始化一个客户端对象
 	client := &Client{
-		UserDTO:    userDto,
+		UserId:     userDto.UserId,
 		socket:     conn,
 		Send:       make(chan map[string]interface{}),
-		InsertTime: time.Now().Format("2006-01-02 15:04:05"),
 	}
+	// 初始化一个用户数据
+	userInfo := UserInfo{
+		UserId:   userDto.UserId,
+		Username: userDto.Username,
+		Avatar:   userDto.Avatar,
+		InsertTime: time.Now().Format("2006-01-02 15:04:05"),
+		LastUpdateTime: time.Now().Format("2006-01-02 15:04:05"),
+	}
+	userInfo.SaveUserInfo()
 	//把这个对象发送给 管道
 	Manager.register <- client
 	// 协程接收输出信息
@@ -72,20 +77,21 @@ func Server(c *gin.Context) {
 func (manager *ClientManager) start() {
 	for {
 		select {
-		case conn := <-manager.register: //新客户端加入
+		case c := <-manager.register: //新客户端加入
 			// 判断用户是否还在
-			if client, ok := manager.clients[conn.UserDTO.UserId]; ok {
-				client.socket = conn.socket
+			if client, ok := manager.clients[c.UserId]; ok {
+				client.socket = c.socket
 			} else {
-				manager.clients[conn.UserDTO.UserId] = conn
+				manager.clients[c.UserId] = c
 			}
-			fmt.Println("新用户加入:"+conn.UserDTO.Username, "加入时间："+conn.InsertTime)
+			userInfo := GetUserInfo(c.UserId)
+			fmt.Println("新用户加入:"+userInfo.Username, "加入时间："+userInfo.InsertTime)
 			fmt.Println("当前总用户数量register：", len(manager.clients))
-		case conn := <-manager.unregister: // 离开
-			if _, ok := manager.clients[conn.UserDTO.UserId]; ok {
-				close(conn.Send)
-				delete(manager.clients, conn.UserDTO.UserId)
-				fmt.Println("用户离开：" + conn.UserDTO.Username)
+		case c := <-manager.unregister: // 离开
+			if _, ok := manager.clients[c.UserId]; ok {
+				close(c.Send)
+				delete(manager.clients, c.UserId)
+				fmt.Println("用户离开：" + c.UserId)
 				fmt.Println("当前总用户数量unregister：", len(manager.clients))
 			}
 			//case message := <-manager.broadcast: //读到广播管道数据后的处理
@@ -212,7 +218,9 @@ func (c *Client) read() {
 			c.Protocol = baseMessage.Protocol
 			infoMessage := reflect.New(info.messageType.Elem()).Interface()
 			proto.Unmarshal(baseMessage.Data, infoMessage.(proto.Message))
-			info.messageHandler(c, infoMessage)
+			userInfo := GetUserInfo(c.UserId)
+			fmt.Println(userInfo, "-===-=-=-")
+			info.messageHandler(userInfo, c, infoMessage)
 		} else {
 			panic("找不到协议对应的结构体")
 		}

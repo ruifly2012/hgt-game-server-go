@@ -8,7 +8,7 @@ import (
 
 var ProtocolHandler = make(map[int64]MessageInfo)
 
-type MessageHandler func(c *Client, msg interface{})
+type MessageHandler func(userInfo UserInfo, c *Client, msg interface{})
 
 // 创建房间
 const  ProtocolCreateRoomReq int64 = 2001

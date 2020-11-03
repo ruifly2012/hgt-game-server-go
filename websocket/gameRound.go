@@ -63,26 +63,26 @@ func (room *RoomInfo) CreateRound() {
 }
 
 // 聊天或提问消息
-func Chat(c *Client, msg interface{}) {
+func Chat(user UserInfo, c *Client, msg interface{}) {
 	chatReq := msg.(*protobuf.ChatReq)
-	if round, ok := RoundManage.GetRoundInfo(c.RoomId); ok {
+	if round, ok := RoundManage.GetRoundInfo(user.RoomId); ok {
 		messageId, _ := app.GenerateSnowflakeID()
 		isMc := false
-		if c.UserDTO.UserId == round.McUserId {
+		if user.UserId == round.McUserId {
 			isMc = true
 		}
 		newMessage := protobuf.ChatMessageRes{
 			Id:      messageId,
 			Content: chatReq.Content,
 			Answer:  AnswerStatusUnanswered,
-			Aid:     c.UserDTO.UserId,
-			AvaName: c.UserDTO.Username,
-			AvaHead: c.UserDTO.Avatar,
+			Aid:     user.UserId,
+			AvaName: user.Username,
+			AvaHead: user.Avatar,
 			Mc:      isMc,
 		}
 		// 加入消息列表
 		round.ChatList.Set(messageId, newMessage)
-		RoundManage.Set(c.RoomId, round)
+		RoundManage.Set(user.RoomId, round)
 		// 往对局成员推送消息
 		for userId, member := range round.GetRoundMemberMap() {
 			fmt.Println("聊天消息发送："+member.AvaName, "内容："+newMessage.Content)
@@ -108,11 +108,11 @@ func Chat(c *Client, msg interface{}) {
 }
 
 // MC回答
-func Answer(c *Client, msg interface{}) {
+func Answer(user UserInfo, c *Client, msg interface{}) {
 	answerReq := msg.(*protobuf.AnswerReq)
-	if round, ok := RoundManage.GetRoundInfo(c.RoomId); ok {
+	if round, ok := RoundManage.GetRoundInfo(user.RoomId); ok {
 		// 判断是否时mc
-		if round.McUserId != c.UserDTO.UserId {
+		if round.McUserId != user.UserId {
 			//只有mc才具备回复
 			c.Send <- map[string]interface{}{
 				"protocol": ProtocolAnswerRes,
@@ -125,7 +125,7 @@ func Answer(c *Client, msg interface{}) {
 				chatMessage.Answer = answerReq.Answer
 				// 更新消息
 				round.ChatList.Set(answerReq.Id, chatMessage)
-				RoundManage.Set(c.RoomId, round)
+				RoundManage.Set(user.RoomId, round)
 				// 推送更新
 				for userId, _ := range round.GetRoundMemberMap() {
 					fmt.Println("聊天回答结果发送：", chatMessage.Answer)
@@ -160,18 +160,18 @@ func Answer(c *Client, msg interface{}) {
 	} else {
 		// 对局不存在
 		c.Send <- map[string]interface{}{
-			"protocol": ProtocolChatRes,
+			"protocol": ProtocolAnswerRes,
 			"code": CodeRoundNotExist,
 		}
 	}
 }
 
 // 对局结束
-func End(c *Client, msg interface{}) {
+func End(user UserInfo, c *Client, msg interface{}) {
 	fmt.Println("游戏结束")
-	if round, ok := RoundManage.GetRoundInfo(c.RoomId); ok {
+	if round, ok := RoundManage.GetRoundInfo(user.RoomId); ok {
 		// 判断是否时mc
-		if round.McUserId != c.UserDTO.UserId {
+		if round.McUserId != user.UserId {
 			// 只有mc才具备公布汤底
 			c.Send <- map[string]interface{}{
 				"protocol": ProtocolEndRes,
@@ -182,14 +182,14 @@ func End(c *Client, msg interface{}) {
 		// 保存数据
 		go round.saveRoundData()
 		// 修改房间数据
-		room, _ := RoomManage.GetRoomInfo(c.RoomId)
+		room, _ := RoomManage.GetRoomInfo(user.RoomId)
 		for userId, member := range room.GetRoomMemberMap() {
 			member.Status = MemberStatusInRoom
 			room.Member.Set(userId, member)
 		}
 		room.Status = RoomStatusPreparing
 		// 更新房间数据
-		RoomManage.Set(c.RoomId, room)
+		RoomManage.Set(user.RoomId, room)
 		// 推送房间数据
 		for userId, _ := range room.GetRoomMemberMap() {
 			if client, ok := Manager.clients[userId]; ok {
@@ -200,7 +200,7 @@ func End(c *Client, msg interface{}) {
 					"data": &protobuf.RoomPush{
 						Status:      RoomStatusPreparing,
 						SeatsChange: room.GetRoomMemberList(),
-						RoomId:      c.RoomId,
+						RoomId:      user.RoomId,
 						Question:    &room.Question,
 					},
 				}
