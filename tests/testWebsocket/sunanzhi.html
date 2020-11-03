@@ -7,7 +7,7 @@
 </head>
 
 <body>
-    <button>2001 创建房间</button>
+    <button>2002 创建房间</button>
     <button>2003 加入房间</button>
     <button>2004 离开房间</button>
     <button>2005 房间准备</button>
@@ -15,9 +15,10 @@
     <button>2009 mc回答内容</button>
     <button>2010 游戏结束</button>
     <button>2011 选题</button>
-    <button>3000 选题</button>
+    <button>2012 获取数据</button>
+    <button>3000 测试</button>
     <br>
-    protocol:<input type="number" id="protocol" value="2001"> <br>
+    protocol:<input type="number" id="protocol" value="2002"> <br>
     roomId:<input type="text" id="roomId" value=""> <br>
     messageContent:<input type="text" id="messageContent" value=""> <br>
     messageId:<input type="text" id="messageId" value=""> <br>
@@ -55,7 +56,7 @@
                 protobuf.load("protos/SoupMessage.proto", function (err, root) {
                     if (err) throw err;
                     switch (baseMessage.protocol) {
-                        case -2001: // 创房返回
+                        case -2002: // 创房返回
                             var resChildMessage = root.lookupType("SoupMessage.CreateRoomRes");
                             break;
                         case -2003: // 加入房间返回
@@ -73,11 +74,14 @@
                         case -2009: // mc回复返回
                             var resChildMessage = root.lookupType("SoupMessage.AnswerRes");
                             break;
-                        case -2010: // 游戏结束
+                        case -2010: // 游戏结束返回
                             var resChildMessage = root.lookupType("SoupMessage.EndRes");
                             break;
-                        case -2011: // 选题
+                        case -2011: // 选题返回
                             var resChildMessage = root.lookupType("SoupMessage.SelectQuestionRes");
+                            break;
+                        case -2012: // 获取数据返回
+                            var resChildMessage = root.lookupType("SoupMessage.LoadRes");
                             break;
                         case 2901: // 接收房间消息
                             var resChildMessage = root.lookupType("SoupMessage.RoomPush");
@@ -102,7 +106,7 @@
                     var answer = document.getElementById("answer").value
                     var questionId = document.getElementById("questionId").value
                     switch (protocol) {
-                        case "2001": // 创建房间
+                        case "2002": // 创建房间
                             var childMessage = root.lookupType("SoupMessage.CreateRoomReq");
                             var childData = childMessage.fromObject({ password: "passssss", name: "dddddddddddd", max: 8 })
                             break;
@@ -133,6 +137,10 @@
                         case "2011": // 选择问题
                             var childMessage = root.lookupType("SoupMessage.SelectQuestionReq");
                             var childData = childMessage.fromObject({id: questionId})
+                            break;
+                        case "2012": // 获取数据
+                            var childMessage = root.lookupType("SoupMessage.LoadReq");
+                            var childData = childMessage.fromObject({})
                             break;
                         case "3000": // 测试数据
                             var childMessage = root.lookupType("SoupMessage.CreateRoomReq");

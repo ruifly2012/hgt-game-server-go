@@ -1,7 +1,6 @@
 package websocket
 
 import (
-	"fmt"
 	cmap "github.com/orcaman/concurrent-map"
 )
 
@@ -27,41 +26,49 @@ type UserManageStruct struct {
 	cmap.ConcurrentMap
 }
 
-var UserManage = UserManageStruct{
-cmap.New(),
-}
-
-// @todo 断线重连
-func Reconnect(c *Client, msg interface{}) {
-
+var UserManage = &UserManageStruct{
+	cmap.New(),
 }
 
 // 设置用户数据
 func (user UserInfo) SaveUserInfo() {
-	// @todo 判断是否存在用户数据 考虑重连问题
-
+	// 判断是否存在用户数据 考虑重连问题
+	oldUserInfo, exist := GetUserInfo(user.UserId)
+	if exist && oldUserInfo.RoomId != "" {
+		// 房间是否存在
+		_, exist := RoomManage.GetRoomInfo(oldUserInfo.RoomId)
+		if exist {
+			// 需要重连
+			user.RoomId = oldUserInfo.RoomId
+			user.Status = oldUserInfo.Status
+		}
+	}
 	UserManage.Set(user.UserId, user)
 }
 
 // 获取用户信息
-func GetUserInfo(userId string) UserInfo {
-	userInterface, _ := UserManage.Get(userId)
-	userInfo := userInterface.(UserInfo)
-	fmt.Println(userInfo)
+func GetUserInfo(userId string) (UserInfo, bool) {
+	userInterface, exist := UserManage.Get(userId)
+	if exist {
+		userInfo := userInterface.(UserInfo)
+		return userInfo, true
+	}
 
-	return userInfo
+	return UserInfo{}, false
 }
 
 // 设置status
-func (user UserInfo) SetStatus(status uint32)  {
+func (user UserInfo) SetStatus(status uint32) UserInfo {
 	user.Status = status
 	UserManage.Set(user.UserId, user)
-	fmt.Println("设置status")
+
+	return user
 }
 
 // 更新roomId
-func (user UserInfo) SetRoomId(roomId string) {
+func (user UserInfo) SetRoomId(roomId string) UserInfo {
 	user.RoomId = roomId
 	UserManage.Set(user.UserId, user)
-	fmt.Println("设置roomId")
+
+	return user
 }

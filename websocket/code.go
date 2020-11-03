@@ -48,6 +48,10 @@ const (
 	CodeRoomSomeMemberNotPrepare = 20501
 	// 人数太少 最少三个人
 	CodeRoomMaxTooLittle = 20502
+	// 游戏已经开始 不可以准备
+	CodeGameStartRefusePrepare = 20503
+	// 你已经准备 请勿重复准备
+	CodeYourAlreadyPrepare = 20504
 
 	// ---------- 踢人相关
 	// 踢人失败

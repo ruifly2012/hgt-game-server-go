@@ -31,7 +31,6 @@ func (room *RoomInfo) GetRoomMember(userId string) (protobuf.RoomMemberSeatRes, 
 	return protobuf.RoomMemberSeatRes{}, false
 }
 
-
 // 获取房间成员信息
 func (room *RoomInfo) GetRoomMemberMap() map[string]protobuf.RoomMemberSeatRes {
 	memberList := make(map[string]protobuf.RoomMemberSeatRes)
@@ -60,7 +59,8 @@ func (round *RoundInfo) GetRoundMemberMap() map[string]protobuf.RoomMemberSeatRe
 func (room *RoomInfo) GetRoomMemberList() []*protobuf.RoomMemberSeatRes {
 	var roomMembers []*protobuf.RoomMemberSeatRes
 
-	for _, member := range room.GetRoomMemberMap() {
+	for item := range room.Member.IterBuffered() {
+		member := item.Val.(protobuf.RoomMemberSeatRes)
 		roomMembers = append(roomMembers, &member)
 	}
 
@@ -91,7 +91,9 @@ func (round *RoundInfo) GetRoundChatMap() map[string]protobuf.ChatMessageRes {
 // 获取所有成员
 func (round *RoundInfo) GetRoundChatList() []*protobuf.ChatMessageRes {
 	var chatList []*protobuf.ChatMessageRes
-	for _, message := range round.GetRoundChatMap() {
+
+	for item := range round.ChatList.IterBuffered() {
+		message := item.Val.(protobuf.ChatMessageRes)
 		chatList = append(chatList, &message)
 	}
 

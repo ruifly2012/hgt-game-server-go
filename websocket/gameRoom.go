@@ -36,7 +36,7 @@ type RoomInfo struct {
 	// 房间人数限制
 	Max uint32
 	// 房间状态 0：闲置 1：准备中 2：选题中 3：游戏中
-	Status uint8
+	Status uint32
 	// 问题
 	Question protobuf.QuestionRes
 	// 成员列表
@@ -94,9 +94,9 @@ func CreateRoom(user UserInfo, c *Client, msg interface{}) {
 	RoomManage.Set(roomId, room)
 	fmt.Println(user.Username + "创建了房间id：" + roomId)
 	// 设置当前群id
-	user.SetRoomId(roomId)
+	user = user.SetRoomId(roomId)
 	// 设置用户状态
-	user.SetStatus(MemberStatusPreparing)
+	user = user.SetStatus(MemberStatusPreparing)
 	c.Send <- map[string]interface{}{
 		"protocol": ProtocolCreateRoomRes,
 		"code":     CodeSuccess,
@@ -115,37 +115,42 @@ func JoinRoom(user UserInfo, c *Client, msg interface{}) {
 	joinRoomReq := msg.(*protobuf.JoinRoomReq)
 	// 找房间
 	if room, ok := RoomManage.GetRoomInfo(joinRoomReq.RoomId); ok {
-		if room.Status == RoomStatusGaming {
-			// 游戏已经开局
+		// 判断用户是否在房间里面
+		newUser, memberExist := room.GetRoomMember(user.UserId)
+		// 游戏已经开局 && 用户不在
+		if room.Status == RoomStatusGaming && !memberExist{
 			c.Send <- map[string]interface{}{
 				"protocol": ProtocolJoinRoomRes,
 				"code":     CodeRoomGaming,
 			}
 			return
 		}
-		if int(room.Max) <= room.Member.Count() {
-			// 房间人数上限，不能加入房间
+		// 房间人数上限，不能加入房间 && 用户不存在
+		if int(room.Max) <= room.Member.Count() && !memberExist {
 			c.Send <- map[string]interface{}{
 				"protocol": ProtocolJoinRoomRes,
 				"code":     CodeRoomAlreadyMax,
 			}
 			return
 		}
-		// 用户进入房间 将当前用户roomId 设置成这个
-		user.SetRoomId(joinRoomReq.RoomId)
-		// 设置用户状态
-		user.SetStatus(MemberStatusInRoom)
-		newUser := protobuf.RoomMemberSeatRes{
-			Aid:     user.UserId,
-			AvaName: user.Username,
-			AvaHead: user.Avatar,
-			Index:   0,
-			Owner:   false,
-			Status:  MemberStatusInRoom,
-			Mc:      false,
-			Leave:   false,
+		// 用户不存在
+		if !memberExist {
+			// 用户进入房间 将当前用户roomId 设置成这个
+			user = user.SetRoomId(joinRoomReq.RoomId)
+			// 设置用户状态
+			user = user.SetStatus(MemberStatusInRoom)
+			newUser = protobuf.RoomMemberSeatRes{
+				Aid:     user.UserId,
+				AvaName: user.Username,
+				AvaHead: user.Avatar,
+				Index:   0,
+				Owner:   false,
+				Status:  MemberStatusInRoom,
+				Mc:      false,
+				Leave:   false,
+			}
+			room.Member.Set(user.UserId, newUser)
 		}
-		room.Member.Set(user.UserId, newUser)
 		fmt.Println("用户：" + user.Username + " 加入房间：" + joinRoomReq.RoomId)
 		// 通知群里面所有人
 		for _, info := range room.GetRoomMemberMap() {
@@ -167,7 +172,7 @@ func JoinRoom(user UserInfo, c *Client, msg interface{}) {
 							Room: &protobuf.RoomPush{
 								SeatsChange: room.GetRoomMemberList(),
 								Question:    &room.Question,
-								Status:      RoomStatusPreparing,
+								Status:      room.Status,
 								RoomId:      joinRoomReq.RoomId,
 								Msg:         chatList,
 							},
@@ -219,9 +224,9 @@ func LeaveRoom(user UserInfo, c *Client, msg interface{}) {
 			}
 			fmt.Println("用户：" + user.Username + " 离开了房间：" + roomId)
 			// 离开的人的房间置为空
-			user.SetRoomId("")
+			user = user.SetRoomId("")
 			// 设置用户状态 空闲
-			user.SetStatus(MemberStatusEmpty)
+			user = user.SetStatus(MemberStatusEmpty)
 			room.Member.Remove(user.UserId)
 			if lastOneFlag {
 				// 房间最后一个人退出，房间销毁
@@ -271,11 +276,18 @@ func LeaveRoom(user UserInfo, c *Client, msg interface{}) {
 
 // 游戏准备
 func Prepare(user UserInfo, c *Client, msg interface{}) {
-	fmt.Println(user.RoomId, "----------------")
 	prepare := msg.(*protobuf.PrepareReq)
 	// 找房间
 	if room, ok := RoomManage.GetRoomInfo(user.RoomId); ok {
-		if info, ok := room.GetRoomMember(user.UserId); ok {
+		// 游戏已经开始 不可以准备
+		if room.Status == RoomStatusGaming {
+			c.Send <- map[string]interface{}{
+				"protocol": ProtocolPrepareRes,
+				"code": CodeGameStartRefusePrepare,
+			}
+			return
+		}
+		if memberInfo, ok := room.GetRoomMember(user.UserId); ok {
 			// mc准备 则考虑游戏是否要开始
 			if user.UserId == room.McUserId {
 				var roomMemberCount = room.Member.Count()
@@ -336,7 +348,7 @@ func Prepare(user UserInfo, c *Client, msg interface{}) {
 					room.Member.Set(userId, info)
 					RoomManage.Set(user.RoomId, room)
 					// 设置用户状态 游戏中
-					user.SetStatus(MemberStatusPreparing)
+					user = user.SetStatus(MemberStatusPreparing)
 					if client, ok := Manager.clients[userId]; ok {
 						client.Send <- map[string]interface{}{
 							"protocol": ProtocolRoomPush,
@@ -351,18 +363,26 @@ func Prepare(user UserInfo, c *Client, msg interface{}) {
 					room.CreateRound()
 				}
 			} else {
+				// 你已经准备 请勿重复准备
+				if memberInfo.Status == MemberStatusPreparing {
+					c.Send <- map[string]interface{}{
+						"protocol": ProtocolPrepareRes,
+						"code": CodeYourAlreadyPrepare,
+					}
+					return
+				}
 				if prepare.Ok {
 					// 准备
-					info.Status = MemberStatusPreparing
+					memberInfo.Status = MemberStatusPreparing
 				} else {
 					// 取消准备 在房间GetRoomMember
-					info.Status = MemberStatusInRoom
+					memberInfo.Status = MemberStatusInRoom
 				}
 				// 更新当前用户信息
-				room.Member.Set(user.UserId, info)
+				room.Member.Set(user.UserId, memberInfo)
 				RoomManage.Set(user.RoomId, room)
 				// 设置用户状态 准备中
-				user.SetStatus(MemberStatusPreparing)
+				user = user.SetStatus(MemberStatusPreparing)
 				// 推送消息
 				for _, info := range room.GetRoomMemberMap() {
 					if client, ok := Manager.clients[info.Aid]; ok {
@@ -499,6 +519,12 @@ func Test(user UserInfo, c *Client, msg interface{}) {
 	for _, roundInterface := range RoundManage.Items() {
 		round := roundInterface.(RoundInfo)
 		jsons, _ := json.Marshal(round)
+		fmt.Println(string(jsons))
+	}
+	fmt.Println("所有用户数据")
+	for item := range UserManage.IterBuffered() {
+		user := item.Val.(UserInfo)
+		jsons, _ := json.Marshal(user)
 		fmt.Println(string(jsons))
 	}
 }

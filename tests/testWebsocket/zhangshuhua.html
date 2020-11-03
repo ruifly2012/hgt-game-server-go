@@ -7,7 +7,7 @@
 </head>
 
 <body>
-    <button>2001 创建房间</button>
+    <button>2002 创建房间</button>
     <button>2003 加入房间</button>
     <button>2004 离开房间</button>
     <button>2005 房间准备</button>
@@ -54,7 +54,7 @@
                 protobuf.load("protos/SoupMessage.proto", function (err, root) {
                     if (err) throw err;
                     switch (baseMessage.protocol) {
-                        case -2001: // 创房返回
+                        case -2002: // 创房返回
                             var resChildMessage = root.lookupType("SoupMessage.CreateRoomRes");
                             break;
                         case -2003: // 加入房间返回
@@ -101,7 +101,7 @@
                     var answer = document.getElementById("answer").value
                     var questionId = document.getElementById("questionId").value
                     switch (protocol) {
-                        case "2001": // 创建房间
+                        case "2002": // 创建房间
                             var childMessage = root.lookupType("SoupMessage.CreateRoomReq");
                             var childData = childMessage.fromObject({ password: "passssss", name: "dddddddddddd", max: 8 })
                             break;

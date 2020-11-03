@@ -84,7 +84,7 @@ func (manager *ClientManager) start() {
 			} else {
 				manager.clients[c.UserId] = c
 			}
-			userInfo := GetUserInfo(c.UserId)
+			userInfo, _ := GetUserInfo(c.UserId)
 			fmt.Println("新用户加入:"+userInfo.Username, "加入时间："+userInfo.InsertTime)
 			fmt.Println("当前总用户数量register：", len(manager.clients))
 		case c := <-manager.unregister: // 离开
@@ -218,7 +218,7 @@ func (c *Client) read() {
 			c.Protocol = baseMessage.Protocol
 			infoMessage := reflect.New(info.messageType.Elem()).Interface()
 			proto.Unmarshal(baseMessage.Data, infoMessage.(proto.Message))
-			userInfo := GetUserInfo(c.UserId)
+			userInfo, _ := GetUserInfo(c.UserId)
 			info.messageHandler(userInfo, c, infoMessage)
 		} else {
 			panic("找不到协议对应的结构体")
