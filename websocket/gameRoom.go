@@ -151,14 +151,26 @@ func JoinRoom(user UserInfo, c *Client, msg interface{}) {
 		for _, info := range room.GetRoomMemberMap() {
 			if client, ok := Manager.clients[info.Aid]; ok {
 				if info.Aid == newUser.Aid {
+					// 获取完整对局数据
+					round, okRound := RoundManage.GetRoundInfo(joinRoomReq.RoomId)
+					var chatList []*protobuf.ChatMessageRes
+					if okRound {
+						chatList = round.GetRoundChatList()
+					} else {
+						chatList = nil
+					}
 					// 当前加入的用户，推送整个 roomPush
 					client.Send <- map[string]interface{}{
-						"protocol": ProtocolRoomPush,
+						"protocol": ProtocolJoinRoomRes,
 						"code":     CodeSuccess,
-						"data": &protobuf.RoomPush{
-							Status:      RoomStatusPreparing,
-							SeatsChange: room.GetRoomMemberList(),
-							RoomId:      joinRoomReq.RoomId,
+						"data": &protobuf.JoinRoomRes{
+							Room: &protobuf.RoomPush{
+								SeatsChange: room.GetRoomMemberList(),
+								Question:    &room.Question,
+								Status:      RoomStatusPreparing,
+								RoomId:      joinRoomReq.RoomId,
+								Msg:         chatList,
+							},
 						},
 					}
 				} else {

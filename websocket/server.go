@@ -219,7 +219,6 @@ func (c *Client) read() {
 			infoMessage := reflect.New(info.messageType.Elem()).Interface()
 			proto.Unmarshal(baseMessage.Data, infoMessage.(proto.Message))
 			userInfo := GetUserInfo(c.UserId)
-			fmt.Println(userInfo, "-===-=-=-")
 			info.messageHandler(userInfo, c, infoMessage)
 		} else {
 			panic("找不到协议对应的结构体")

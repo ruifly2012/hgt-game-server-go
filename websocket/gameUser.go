@@ -39,6 +39,7 @@ func Reconnect(c *Client, msg interface{}) {
 // 设置用户数据
 func (user UserInfo) SaveUserInfo() {
 	// @todo 判断是否存在用户数据 考虑重连问题
+
 	UserManage.Set(user.UserId, user)
 }
 

@@ -10,9 +10,12 @@ var ProtocolHandler = make(map[int64]MessageInfo)
 
 type MessageHandler func(userInfo UserInfo, c *Client, msg interface{})
 
+// 查询大厅房间数据
+const ProtocolRoomHallReq int64 = 2001
+const ProtocolRoomHallRes int64 = -2001
 // 创建房间
-const  ProtocolCreateRoomReq int64 = 2001
-const  ProtocolCreateRoomRes int64 = -2001
+const ProtocolCreateRoomReq int64 = 2002
+const ProtocolCreateRoomRes int64 = -2002
 // 加入房间
 const ProtocolJoinRoomReq int64 = 2003
 const ProtocolJoinRoomRes int64 = -2003
@@ -35,6 +38,9 @@ const ProtocolEndRes int64 = -2010
 // 选择问题
 const ProtocolSelectQuestionReq int64 = 2011
 const ProtocolSelectQuestionRes int64 = -2011
+// 读取数据
+const ProtocolLoadReq int64 = 2012
+const ProtocolLoadRes int64 = -2012
 
 // 房间推送消息
 const ProtocolRoomPush int64 = 2901
@@ -49,6 +55,9 @@ type MessageInfo struct {
 
 // 加载协议
 func LoadProtocol() {
+	// 查询大厅数据
+	RegisterMessage(ProtocolRoomHallReq, &protobuf.RoomHallReq{}, RoomHall)
+	RegisterMessage(ProtocolRoomHallRes, &protobuf.RoomHallRes{}, nil)
 	// 创建房间
 	RegisterMessage(ProtocolCreateRoomReq, &protobuf.CreateRoomReq{}, CreateRoom)
 	RegisterMessage(ProtocolCreateRoomRes, &protobuf.CreateRoomRes{}, nil)
@@ -74,6 +83,10 @@ func LoadProtocol() {
 	// 选择问题
 	RegisterMessage(ProtocolSelectQuestionReq, &protobuf.SelectQuestionReq{}, SelectQuestion)
 	RegisterMessage(ProtocolSelectQuestionRes, &protobuf.SelectQuestionRes{}, nil)
+
+	// 读取数据
+	RegisterMessage(ProtocolLoadReq, &protobuf.LoadReq{}, Load)
+	RegisterMessage(ProtocolLoadRes, &protobuf.LoadRes{}, nil)
 
 	// 房间推送消息
 	RegisterMessage(ProtocolRoomPush, &protobuf.RoomPush{}, nil)

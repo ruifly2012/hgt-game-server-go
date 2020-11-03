@@ -87,3 +87,13 @@ func (round *RoundInfo) GetRoundChatMap() map[string]protobuf.ChatMessageRes {
 
 	return chatList
 }
+
+// 获取所有成员
+func (round *RoundInfo) GetRoundChatList() []*protobuf.ChatMessageRes {
+	var chatList []*protobuf.ChatMessageRes
+	for _, message := range round.GetRoundChatMap() {
+		chatList = append(chatList, &message)
+	}
+
+	return chatList
+}
