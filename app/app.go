@@ -19,7 +19,7 @@ func Init() *gin.Engine {
 	}
 	g := gin.New()
 	// 加入错误捕获 全局返回json 中间件
-	g.Use(LoggerToFile(), Recovery(), ReturnJson())
+	g.Use(LoggerToFile(), Recovery(), ReturnJson(), Cors())
 	// 加载配置
 	LoadConfig()
 	// 加载数据库

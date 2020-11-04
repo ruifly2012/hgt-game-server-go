@@ -118,7 +118,7 @@ func JoinRoom(user UserInfo, c *Client, msg interface{}) {
 		// 判断用户是否在房间里面
 		newUser, memberExist := room.GetRoomMember(user.UserId)
 		// 游戏已经开局 && 用户不在
-		if room.Status == RoomStatusGaming && !memberExist{
+		if room.Status == RoomStatusGaming && !memberExist {
 			c.Send <- map[string]interface{}{
 				"protocol": ProtocolJoinRoomRes,
 				"code":     CodeRoomGaming,
@@ -164,17 +164,26 @@ func JoinRoom(user UserInfo, c *Client, msg interface{}) {
 					} else {
 						chatList = nil
 					}
+					// 题目列表
+					var questionResList []*protobuf.QuestionRes
+					if room.McUserId == newUser.Aid && room.Status == RoomStatusSelectQuestion {
+						questionResList = getQuestionList(room)
+					} else {
+						questionResList = nil
+					}
 					// 当前加入的用户，推送整个 roomPush
 					client.Send <- map[string]interface{}{
 						"protocol": ProtocolJoinRoomRes,
 						"code":     CodeSuccess,
 						"data": &protobuf.JoinRoomRes{
 							Room: &protobuf.RoomPush{
-								SeatsChange: room.GetRoomMemberList(),
-								Question:    &room.Question,
-								Status:      room.Status,
-								RoomId:      joinRoomReq.RoomId,
-								Msg:         chatList,
+								SeatsChange:     room.GetRoomMemberList(),
+								Question:        &room.Question,
+								Status:          room.Status,
+								RoomId:          joinRoomReq.RoomId,
+								Msg:             chatList,
+								McId:            room.McUserId,
+								SelectQuestions: questionResList,
 							},
 						},
 					}
@@ -228,6 +237,7 @@ func LeaveRoom(user UserInfo, c *Client, msg interface{}) {
 			// 设置用户状态 空闲
 			user = user.SetStatus(MemberStatusEmpty)
 			room.Member.Remove(user.UserId)
+			RoomManage.Set(room.RoomId, room)
 			if lastOneFlag {
 				// 房间最后一个人退出，房间销毁
 				RoomManage.Remove(roomId)
@@ -279,11 +289,11 @@ func Prepare(user UserInfo, c *Client, msg interface{}) {
 	prepare := msg.(*protobuf.PrepareReq)
 	// 找房间
 	if room, ok := RoomManage.GetRoomInfo(user.RoomId); ok {
-		// 游戏已经开始 不可以准备
-		if room.Status == RoomStatusGaming {
+		// 游戏已经开始|选题中 不可以准备
+		if room.Status == RoomStatusGaming || room.Status == RoomStatusSelectQuestion {
 			c.Send <- map[string]interface{}{
 				"protocol": ProtocolPrepareRes,
-				"code": CodeGameStartRefusePrepare,
+				"code":     CodeGameStartRefusePrepare,
 			}
 			return
 		}
@@ -346,6 +356,7 @@ func Prepare(user UserInfo, c *Client, msg interface{}) {
 					// 将玩家改成游戏中状态
 					info.Status = MemberStatusGaming
 					room.Member.Set(userId, info)
+					room.Status = RoomStatusSelectQuestion
 					RoomManage.Set(user.RoomId, room)
 					// 设置用户状态 游戏中
 					user = user.SetStatus(MemberStatusPreparing)
@@ -359,15 +370,13 @@ func Prepare(user UserInfo, c *Client, msg interface{}) {
 							},
 						}
 					}
-					// 创建对局
-					room.CreateRound()
 				}
 			} else {
 				// 你已经准备 请勿重复准备
 				if memberInfo.Status == MemberStatusPreparing {
 					c.Send <- map[string]interface{}{
 						"protocol": ProtocolPrepareRes,
-						"code": CodeYourAlreadyPrepare,
+						"code":     CodeYourAlreadyPrepare,
 					}
 					return
 				}
@@ -473,6 +482,8 @@ func SelectQuestion(user UserInfo, c *Client, msg interface{}) {
 				}
 			}
 		}
+		// 创建对局
+		room.CreateRound()
 	} else {
 		// 房间不存在
 		c.Send <- map[string]interface{}{
@@ -527,4 +538,45 @@ func Test(user UserInfo, c *Client, msg interface{}) {
 		jsons, _ := json.Marshal(user)
 		fmt.Println(string(jsons))
 	}
+}
+
+func getQuestionList(room RoomInfo) []*protobuf.QuestionRes {
+	// 创建用户ids 长度 - mc
+	var userIds = make([]string, room.Member.Count()-1)
+	// 判断用户是否都准备完毕/游戏中
+	for userId, member := range room.GetRoomMemberMap() {
+		if member.Status != MemberStatusPreparing && member.Status != MemberStatusGaming {
+			// 玩家未准备
+			return nil
+		}
+		if userId != room.McUserId {
+			userIds = append(userIds, userId)
+		}
+	}
+	// 题目列表
+	var questionResList []*protobuf.QuestionRes
+	// 问题列表数据
+	var questionList = make([]model.Question, 0)
+	// @todo
+	if len(userIds) >= 0 {
+		// 获取题目
+		questionLog := make([]model.UserQuestionLog, 0)
+		app.DB.Cols("question_id").In("user_id", userIds).Find(&questionLog)
+		var unQuestionIds = make([]string, 0)
+		for _, log := range questionLog {
+			unQuestionIds = append(unQuestionIds, log.QuestionId)
+		}
+		app.DB.NotIn("question_id", unQuestionIds).Limit(10).Find(&questionList)
+	}
+	// 处理问题列表
+	for _, question := range questionList {
+		questionResList = append(questionResList, &protobuf.QuestionRes{
+			Id:       question.QuestionId,
+			Title:    question.Title,
+			Question: question.Description,
+			Content:  question.Content,
+		})
+	}
+
+	return questionResList
 }

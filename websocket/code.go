@@ -34,7 +34,7 @@ const (
 	CodeAlreadyExistRoom = 20202
 
 	// ---------- 房间推送相关
-	// 房间推送
+	// 房间推送失败
 	CodeRoomPush = 20300
 
 	// ---------- 离开房间相关
