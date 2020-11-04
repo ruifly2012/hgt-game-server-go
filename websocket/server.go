@@ -44,13 +44,28 @@ func Server(c *gin.Context) {
 	}
 	token := c.Query("Authorization")
 	if token == "" {
-		conn.WriteMessage(websocket.TextMessage, []byte("Illegal connection"))
+		baseMessage := &protobuf.Message{
+			Protocol: -1002,
+			Code:     401,
+		}
+		res, _ := proto.Marshal(baseMessage)
+		conn.WriteMessage(websocket.BinaryMessage, res)
+		conn.Close()
+		return
+	}
+	// 解析token
+	userDto, errString := util.CheckToken(token)
+	if errString != "" {
+		baseMessage := &protobuf.Message{
+			Protocol: -1002,
+			Code:     401,
+		}
+		res, _ := proto.Marshal(baseMessage)
+		conn.WriteMessage(websocket.BinaryMessage, res)
 		conn.Close()
 		return
 	}
 	go Manager.start()
-	// 解析token
-	userDto := util.CheckToken(token)
 
 	//初始化一个客户端对象
 	client := &Client{

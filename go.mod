@@ -19,6 +19,7 @@ require (
 	github.com/sirupsen/logrus v1.7.0
 	github.com/xlstudio/wxbizdatacrypt v1.0.2
 	go.mongodb.org/mongo-driver v1.4.2
+	golang.org/x/crypto v0.0.0-20201016220609-9e8e0b390897
 	golang.org/x/sys v0.0.0-20200223170610-d5e6a3e2c0ae // indirect
 	google.golang.org/protobuf v1.25.0
 	xorm.io/core v0.7.3

@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"github.com/gin-gonic/gin"
 	"github.com/xlstudio/wxbizdatacrypt"
+	"golang.org/x/crypto/bcrypt"
 	"server/app"
 	"server/dto"
+	"server/exception"
 	model "server/model/mysql"
 	"server/util"
 )
@@ -93,3 +95,98 @@ func (api AuthApi) AppletLogin(c *gin.Context) {
 	})
 }
 
+// 注册
+func (api AuthApi) Register (c *gin.Context) {
+	username := app.PostParam(c, "username").(string)
+	// 账号 手机号/邮箱
+	account := app.PostParam(c, "account").(string)
+	password := app.PostParam(c, "password").(string)
+	accountType := app.CheckAccountType(account)
+	if accountType == 0 {
+		exception.Logic("账号类型仅支持手机/邮箱")
+	}
+	if username == "" {
+		exception.Logic("昵称不能为空")
+	}
+	if password == "" {
+		exception.Logic("密码不能为空")
+	}
+	if len(password) < 6 {
+		exception.Logic("密码不能低于六位数字")
+	}
+	var checkUser *model.User
+	// 手机号
+	if accountType == 1 {
+		checkUser = &model.User{Mobile: account}
+	} else {
+		checkUser = &model.User{Email: account}
+	}
+	hasUser, _ := app.DB.Get(checkUser)
+	if hasUser {
+		exception.Logic("该账号已经存在")
+	}
+	hashPwd, _ := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost) //加密处理
+	userId, _ := app.GenerateSnowflakeID()
+	// 新用户
+	userModel := &model.User{
+		UserId:   userId,
+		Username: username,
+		Password: string(hashPwd),
+		Role:     0,
+		Status:   0,
+	}
+	if accountType == 1 {
+		userModel.Mobile = account
+	} else {
+		userModel.Email = account
+	}
+	app.DB.InsertOne(userModel)
+
+	c.Set("data", true)
+}
+
+// 通过账密登录
+func (api AuthApi) Login(c *gin.Context) {
+	// 账号 手机号/邮箱
+	account := app.PostParam(c, "account").(string)
+	password := app.PostParam(c, "password").(string)
+	accountType := app.CheckAccountType(account)
+	if accountType == 0 {
+		exception.Logic("账号类型仅支持手机/邮箱")
+	}
+	var userModel *model.User
+	// 手机号
+	if accountType == 1 {
+		userModel = &model.User{Mobile: account}
+	} else {
+		userModel = &model.User{Email: account}
+	}
+	hasUser, _ := app.DB.Get(userModel)
+	if !hasUser {
+		exception.Logic("账号不存在")
+	}
+	err := bcrypt.CompareHashAndPassword([]byte(userModel.Password), []byte(password)) //验证（对比）
+	if err != nil {
+		exception.Logic("密码错误")
+	}
+
+	accessToken := util.BuildToken(dto.UserDTO{
+		UserId:   userModel.UserId,
+		Username: userModel.Username,
+		Avatar:   userModel.Avatar,
+		Role:     userModel.Role,
+		Status:   userModel.Status,
+	})
+
+	c.Set("data", map[string]interface{}{
+		"accessToken": accessToken,
+		"expire":      7 * 86400,
+		"userInfo": map[string]interface{}{
+			"userId":   userModel.UserId,
+			"username": userModel.Username,
+			"avatar":   userModel.Avatar,
+			"role":     userModel.Role,
+			"status":   userModel.Status,
+		},
+	})
+}

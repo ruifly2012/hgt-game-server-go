@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"io/ioutil"
 	"math/rand"
+	"regexp"
 	"time"
 )
 
@@ -53,6 +54,7 @@ func RandStr(length int) string {
 	return string(result)
 }
 
+// 雪花生成唯一标识
 func GenerateSnowflakeID() (string, error) {
 	node, err := snowflake.NewNode(1)
 	if err != nil {
@@ -63,4 +65,20 @@ func GenerateSnowflakeID() (string, error) {
 	 snowflakeID := node.Generate().String()
 
 	 return snowflakeID, nil
+}
+
+// 识别账号类型
+func CheckAccountType(account string) int {
+	isMobile, _ := regexp.MatchString(`^1\d{10}$`, account)
+	if isMobile {
+		return 1
+	} else {
+		//匹配电子邮箱
+		isEmail := regexp.MustCompile(`\w+([-+.]\w+)*@\w+([-.]\w+)*\.\w+([-.]\w+)*` ).MatchString(account)
+		if isEmail {
+			return 2
+		} else {
+			return 0
+		}
+	}
 }
