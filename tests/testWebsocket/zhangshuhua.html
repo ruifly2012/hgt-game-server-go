@@ -7,16 +7,18 @@
 </head>
 
 <body>
-    <button>2002 创建房间</button>
-    <button>2003 加入房间</button>
-    <button>2004 离开房间</button>
-    <button>2005 房间准备</button>
-    <button>2008 发送聊天内容</button>
-    <button>2009 mc回答内容</button>
-    <button>2010 游戏结束</button>
-    <button>2011 选题</button>
-    <button>3000 选题</button>
-    <br>
+<button>1002 登录</button>
+<button>1003 注册</button>
+<button>2002 创建房间</button>
+<button>2003 加入房间</button>
+<button>2004 离开房间</button>
+<button>2005 房间准备</button>
+<button>2008 发送聊天内容</button>
+<button>2009 mc回答内容</button>
+<button>2010 游戏结束</button>
+<button>2011 选题</button>
+<button>3000 选题</button>
+<br>
     protocol:<input type="number" id="protocol" value="2003"> <br>
     roomId:<input type="text" id="roomId" value=""> <br>
     messageContent:<input type="text" id="messageContent" value=""> <br>
@@ -33,7 +35,7 @@
         // zengnan
         // var websocket = new WebSocket("ws://localhost:8899/wss?Authorization=136c2fed-e912-4301-9c88-29e96e222b41");
         // zhangshuhua
-        var websocket = new WebSocket("ws://localhost:8899/wss?Authorization=93402bcb-8fb3-429a-a460-ffd9e25fbf0d");
+        var websocket = new WebSocket("ws://localhost:9998/ws");
         websocket.binaryType = 'arraybuffer';
         websocket.onopen = function () {
             console.log("websocket open");
@@ -54,6 +56,12 @@
                 protobuf.load("protos/SoupMessage.proto", function (err, root) {
                     if (err) throw err;
                     switch (baseMessage.protocol) {
+                        case -1002:
+                            var resChildMessage = root.lookupType("SoupMessage.LoginRes");
+                            break;
+                        case -1003:
+                            var resChildMessage = root.lookupType("SoupMessage.RegisterRes");
+                            break;
                         case -2002: // 创房返回
                             var resChildMessage = root.lookupType("SoupMessage.CreateRoomRes");
                             break;
@@ -101,13 +109,25 @@
                     var answer = document.getElementById("answer").value
                     var questionId = document.getElementById("questionId").value
                     switch (protocol) {
+                        case "1002": // 登录
+                            var childMessage = root.lookupType("SoupMessage.LoginReq");
+                            var childData = childMessage.fromObject({password: "zhangshuhua", username: "zhangshuhua"})
+                            break;
+                        case "1003": // 注册
+                            var childMessage = root.lookupType("SoupMessage.RegisterReq");
+                            var childData = childMessage.fromObject({password: "zhangshuhua", username: "zhangshuhua"})
+                            break;
                         case "2002": // 创建房间
                             var childMessage = root.lookupType("SoupMessage.CreateRoomReq");
-                            var childData = childMessage.fromObject({ password: "passssss", name: "dddddddddddd", max: 8 })
+                            var childData = childMessage.fromObject({
+                                password: "passssss",
+                                name: "dddddddddddd",
+                                max: 8
+                            })
                             break;
                         case "2003": // 加入房间
                             var childMessage = root.lookupType("SoupMessage.JoinRoomReq");
-                            var childData = childMessage.fromObject({ roomId: roomId })
+                            var childData = childMessage.fromObject({roomId: roomId})
                             break;
                         case "2004": // 离开房间
                             var childMessage = root.lookupType("SoupMessage.LeaveRoomReq");
