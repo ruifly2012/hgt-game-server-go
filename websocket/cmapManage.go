@@ -88,14 +88,17 @@ func (round *RoundInfo) GetRoundChatMap() map[string]protobuf.ChatMessageRes {
 	return chatList
 }
 
-// 获取所有成员
+// 获取对局所有聊天数据
 func (round *RoundInfo) GetRoundChatList() []*protobuf.ChatMessageRes {
 	var chatList []*protobuf.ChatMessageRes
 
-	for item := range round.ChatList.IterBuffered() {
-		message := item.Val.(protobuf.ChatMessageRes)
-		chatList = append(chatList, &message)
+	for e := round.ChatQueue.Front(); e != nil; e = e.Next() {
+		messageId := (e.Value).(string)
+		message, ok := round.GetRoundChat(messageId)
+		if ok {
+			chatList = append(chatList, &message)
+		}
 	}
-
+	
 	return chatList
 }

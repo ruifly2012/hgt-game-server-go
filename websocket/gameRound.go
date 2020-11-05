@@ -1,12 +1,14 @@
 package websocket
 
 import (
+	"container/list"
 	"context"
 	"fmt"
-	"github.com/orcaman/concurrent-map"
 	"server/app"
 	"server/model/mongo"
 	"server/protobuf"
+
+	"github.com/orcaman/concurrent-map"
 )
 
 // 聊天回答 0:未回答 1:不相关 2:是 3:否 4:半对
@@ -35,6 +37,8 @@ type RoundInfo struct {
 	QuestionId string
 	// 聊天列表 map[messageId]protobuf.ChatMessageRes
 	ChatList cmap.ConcurrentMap
+	// 聊天id 队列
+	ChatQueue *list.List
 	// 成员列表
 	Member cmap.ConcurrentMap
 }
@@ -56,6 +60,7 @@ func (room *RoomInfo) CreateRound() {
 	}
 	roundInfo.ChatList = cmap.New()
 	roundInfo.Member = cmap.New()
+	roundInfo.ChatQueue = list.New()
 	for userId, member := range room.GetRoomMemberMap() {
 		roundInfo.Member.Set(userId, member)
 	}
@@ -82,6 +87,7 @@ func Chat(user UserInfo, c *Client, msg interface{}) {
 		}
 		// 加入消息列表
 		round.ChatList.Set(messageId, newMessage)
+		round.ChatQueue.PushBack(messageId)
 		RoundManage.Set(user.RoomId, round)
 		// 往对局成员推送消息
 		for userId, member := range round.GetRoundMemberMap() {
