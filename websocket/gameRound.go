@@ -184,7 +184,11 @@ func End(user UserInfo, c *Client, msg interface{}) {
 		// 修改房间数据
 		room, _ := RoomManage.GetRoomInfo(user.RoomId)
 		for userId, member := range room.GetRoomMemberMap() {
-			member.Status = MemberStatusInRoom
+			if userId == room.McUserId {
+				member.Status = MemberStatusPreparing
+			} else {
+				member.Status = MemberStatusInRoom
+			}
 			room.Member.Set(userId, member)
 		}
 		room.Status = RoomStatusPreparing

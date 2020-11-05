@@ -171,20 +171,31 @@ func JoinRoom(user UserInfo, c *Client, msg interface{}) {
 					} else {
 						questionResList = nil
 					}
+					roomPush := protobuf.RoomPush{
+						SeatsChange:     room.GetRoomMemberList(),
+						Status:          room.Status,
+						RoomId:          joinRoomReq.RoomId,
+						Msg:             chatList,
+						McId:            room.McUserId,
+						SelectQuestions: questionResList,
+					}
+					if room.Status == RoomStatusGaming {
+						roomQuestion := protobuf.QuestionRes{
+							Id: room.Question.Id,
+							Title: room.Question.Title,
+							Question: room.Question.Question,
+						}
+						if  room.McUserId == newUser.Aid {
+							roomQuestion.Content = room.Question.Content
+						}
+						roomPush.Question = &roomQuestion
+					}
 					// 当前加入的用户，推送整个 roomPush
 					client.Send <- map[string]interface{}{
 						"protocol": ProtocolJoinRoomRes,
 						"code":     CodeSuccess,
 						"data": &protobuf.JoinRoomRes{
-							Room: &protobuf.RoomPush{
-								SeatsChange:     room.GetRoomMemberList(),
-								Question:        &room.Question,
-								Status:          room.Status,
-								RoomId:          joinRoomReq.RoomId,
-								Msg:             chatList,
-								McId:            room.McUserId,
-								SelectQuestions: questionResList,
-							},
+							Room: &roomPush,
 						},
 					}
 				} else {
