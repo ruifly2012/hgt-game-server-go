@@ -10,6 +10,16 @@ var ProtocolHandler = make(map[int64]MessageInfo)
 
 type MessageHandler func(userInfo UserInfo, c *Client, msg interface{})
 
+// 心跳
+const ProtocolHeartBeatReq int64 = 2
+const ProtocolHeartBeatRes int64 = -2
+// 登录
+const ProtocolLoginReq int64 = 1002
+const ProtocolLoginRes int64 = -1002
+// 注册
+const ProtocolRegisterReq int64 = 1003
+const ProtocolRegisterRes int64 = -1003
+
 // 查询大厅房间数据
 const ProtocolRoomHallReq int64 = 2001
 const ProtocolRoomHallRes int64 = -2001
@@ -55,6 +65,9 @@ type MessageInfo struct {
 
 // 加载协议
 func LoadProtocol() {
+	// 心跳
+	RegisterMessage(ProtocolHeartBeatReq, &protobuf.HeartBeatReq{}, HeartBeat)
+	RegisterMessage(ProtocolHeartBeatRes, &protobuf.HeartBeatRes{}, nil)
 	// 查询大厅数据
 	RegisterMessage(ProtocolRoomHallReq, &protobuf.RoomHallReq{}, RoomHall)
 	RegisterMessage(ProtocolRoomHallRes, &protobuf.RoomHallRes{}, nil)

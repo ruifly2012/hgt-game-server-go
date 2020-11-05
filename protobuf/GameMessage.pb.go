@@ -92,6 +92,308 @@ func (x *Message) GetData() []byte {
 	return nil
 }
 
+// 2 心跳
+type HeartBeatReq struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+}
+
+func (x *HeartBeatReq) Reset() {
+	*x = HeartBeatReq{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_protos_protobuf_GameMessage_proto_msgTypes[1]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *HeartBeatReq) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HeartBeatReq) ProtoMessage() {}
+
+func (x *HeartBeatReq) ProtoReflect() protoreflect.Message {
+	mi := &file_protos_protobuf_GameMessage_proto_msgTypes[1]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HeartBeatReq.ProtoReflect.Descriptor instead.
+func (*HeartBeatReq) Descriptor() ([]byte, []int) {
+	return file_protos_protobuf_GameMessage_proto_rawDescGZIP(), []int{1}
+}
+
+// -2 心跳 返回
+type HeartBeatRes struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+}
+
+func (x *HeartBeatRes) Reset() {
+	*x = HeartBeatRes{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_protos_protobuf_GameMessage_proto_msgTypes[2]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *HeartBeatRes) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HeartBeatRes) ProtoMessage() {}
+
+func (x *HeartBeatRes) ProtoReflect() protoreflect.Message {
+	mi := &file_protos_protobuf_GameMessage_proto_msgTypes[2]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HeartBeatRes.ProtoReflect.Descriptor instead.
+func (*HeartBeatRes) Descriptor() ([]byte, []int) {
+	return file_protos_protobuf_GameMessage_proto_rawDescGZIP(), []int{2}
+}
+
+// 1003 注册
+type RegisterReq struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Username string `protobuf:"bytes,1,opt,name=username,proto3" json:"username,omitempty"`
+	Password string `protobuf:"bytes,2,opt,name=password,proto3" json:"password,omitempty"`
+}
+
+func (x *RegisterReq) Reset() {
+	*x = RegisterReq{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_protos_protobuf_GameMessage_proto_msgTypes[3]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *RegisterReq) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RegisterReq) ProtoMessage() {}
+
+func (x *RegisterReq) ProtoReflect() protoreflect.Message {
+	mi := &file_protos_protobuf_GameMessage_proto_msgTypes[3]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RegisterReq.ProtoReflect.Descriptor instead.
+func (*RegisterReq) Descriptor() ([]byte, []int) {
+	return file_protos_protobuf_GameMessage_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *RegisterReq) GetUsername() string {
+	if x != nil {
+		return x.Username
+	}
+	return ""
+}
+
+func (x *RegisterReq) GetPassword() string {
+	if x != nil {
+		return x.Password
+	}
+	return ""
+}
+
+// -1003 注册返回
+type RegisterRes struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Id       string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Username string `protobuf:"bytes,2,opt,name=username,proto3" json:"username,omitempty"`
+}
+
+func (x *RegisterRes) Reset() {
+	*x = RegisterRes{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_protos_protobuf_GameMessage_proto_msgTypes[4]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *RegisterRes) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RegisterRes) ProtoMessage() {}
+
+func (x *RegisterRes) ProtoReflect() protoreflect.Message {
+	mi := &file_protos_protobuf_GameMessage_proto_msgTypes[4]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RegisterRes.ProtoReflect.Descriptor instead.
+func (*RegisterRes) Descriptor() ([]byte, []int) {
+	return file_protos_protobuf_GameMessage_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *RegisterRes) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *RegisterRes) GetUsername() string {
+	if x != nil {
+		return x.Username
+	}
+	return ""
+}
+
+// 1002 登录
+type LoginReq struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Username string `protobuf:"bytes,1,opt,name=username,proto3" json:"username,omitempty"`
+	Password string `protobuf:"bytes,2,opt,name=password,proto3" json:"password,omitempty"`
+}
+
+func (x *LoginReq) Reset() {
+	*x = LoginReq{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_protos_protobuf_GameMessage_proto_msgTypes[5]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *LoginReq) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LoginReq) ProtoMessage() {}
+
+func (x *LoginReq) ProtoReflect() protoreflect.Message {
+	mi := &file_protos_protobuf_GameMessage_proto_msgTypes[5]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LoginReq.ProtoReflect.Descriptor instead.
+func (*LoginReq) Descriptor() ([]byte, []int) {
+	return file_protos_protobuf_GameMessage_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *LoginReq) GetUsername() string {
+	if x != nil {
+		return x.Username
+	}
+	return ""
+}
+
+func (x *LoginReq) GetPassword() string {
+	if x != nil {
+		return x.Password
+	}
+	return ""
+}
+
+// -1002 登录返回
+type LoginRes struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Username string `protobuf:"bytes,1,opt,name=username,proto3" json:"username,omitempty"`
+	UserId   string `protobuf:"bytes,2,opt,name=userId,proto3" json:"userId,omitempty"`
+}
+
+func (x *LoginRes) Reset() {
+	*x = LoginRes{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_protos_protobuf_GameMessage_proto_msgTypes[6]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *LoginRes) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LoginRes) ProtoMessage() {}
+
+func (x *LoginRes) ProtoReflect() protoreflect.Message {
+	mi := &file_protos_protobuf_GameMessage_proto_msgTypes[6]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LoginRes.ProtoReflect.Descriptor instead.
+func (*LoginRes) Descriptor() ([]byte, []int) {
+	return file_protos_protobuf_GameMessage_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *LoginRes) GetUsername() string {
+	if x != nil {
+		return x.Username
+	}
+	return ""
+}
+
+func (x *LoginRes) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
 var File_protos_protobuf_GameMessage_proto protoreflect.FileDescriptor
 
 var file_protos_protobuf_GameMessage_proto_rawDesc = []byte{
@@ -102,11 +404,29 @@ var file_protos_protobuf_GameMessage_proto_rawDesc = []byte{
 	0x72, 0x6f, 0x74, 0x6f, 0x63, 0x6f, 0x6c, 0x18, 0x01, 0x20, 0x01, 0x28, 0x03, 0x52, 0x08, 0x70,
 	0x72, 0x6f, 0x74, 0x6f, 0x63, 0x6f, 0x6c, 0x12, 0x12, 0x0a, 0x04, 0x63, 0x6f, 0x64, 0x65, 0x18,
 	0x02, 0x20, 0x01, 0x28, 0x03, 0x52, 0x04, 0x63, 0x6f, 0x64, 0x65, 0x12, 0x12, 0x0a, 0x04, 0x64,
-	0x61, 0x74, 0x61, 0x18, 0x03, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x04, 0x64, 0x61, 0x74, 0x61, 0x42,
-	0x2f, 0x0a, 0x21, 0x69, 0x6f, 0x2e, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62, 0x2e, 0x68, 0x64, 0x66,
-	0x67, 0x31, 0x35, 0x39, 0x2e, 0x67, 0x61, 0x6d, 0x65, 0x2e, 0x64, 0x6f, 0x6d, 0x61, 0x69, 0x6e,
-	0x2e, 0x64, 0x74, 0x6f, 0x5a, 0x0a, 0x2e, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66,
-	0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x61, 0x74, 0x61, 0x18, 0x03, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x04, 0x64, 0x61, 0x74, 0x61, 0x22,
+	0x0e, 0x0a, 0x0c, 0x48, 0x65, 0x61, 0x72, 0x74, 0x42, 0x65, 0x61, 0x74, 0x52, 0x65, 0x71, 0x22,
+	0x0e, 0x0a, 0x0c, 0x48, 0x65, 0x61, 0x72, 0x74, 0x42, 0x65, 0x61, 0x74, 0x52, 0x65, 0x73, 0x22,
+	0x45, 0x0a, 0x0b, 0x52, 0x65, 0x67, 0x69, 0x73, 0x74, 0x65, 0x72, 0x52, 0x65, 0x71, 0x12, 0x1a,
+	0x0a, 0x08, 0x75, 0x73, 0x65, 0x72, 0x6e, 0x61, 0x6d, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09,
+	0x52, 0x08, 0x75, 0x73, 0x65, 0x72, 0x6e, 0x61, 0x6d, 0x65, 0x12, 0x1a, 0x0a, 0x08, 0x70, 0x61,
+	0x73, 0x73, 0x77, 0x6f, 0x72, 0x64, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x08, 0x70, 0x61,
+	0x73, 0x73, 0x77, 0x6f, 0x72, 0x64, 0x22, 0x39, 0x0a, 0x0b, 0x52, 0x65, 0x67, 0x69, 0x73, 0x74,
+	0x65, 0x72, 0x52, 0x65, 0x73, 0x12, 0x0e, 0x0a, 0x02, 0x69, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28,
+	0x09, 0x52, 0x02, 0x69, 0x64, 0x12, 0x1a, 0x0a, 0x08, 0x75, 0x73, 0x65, 0x72, 0x6e, 0x61, 0x6d,
+	0x65, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x08, 0x75, 0x73, 0x65, 0x72, 0x6e, 0x61, 0x6d,
+	0x65, 0x22, 0x42, 0x0a, 0x08, 0x4c, 0x6f, 0x67, 0x69, 0x6e, 0x52, 0x65, 0x71, 0x12, 0x1a, 0x0a,
+	0x08, 0x75, 0x73, 0x65, 0x72, 0x6e, 0x61, 0x6d, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52,
+	0x08, 0x75, 0x73, 0x65, 0x72, 0x6e, 0x61, 0x6d, 0x65, 0x12, 0x1a, 0x0a, 0x08, 0x70, 0x61, 0x73,
+	0x73, 0x77, 0x6f, 0x72, 0x64, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x08, 0x70, 0x61, 0x73,
+	0x73, 0x77, 0x6f, 0x72, 0x64, 0x22, 0x3e, 0x0a, 0x08, 0x4c, 0x6f, 0x67, 0x69, 0x6e, 0x52, 0x65,
+	0x73, 0x12, 0x1a, 0x0a, 0x08, 0x75, 0x73, 0x65, 0x72, 0x6e, 0x61, 0x6d, 0x65, 0x18, 0x01, 0x20,
+	0x01, 0x28, 0x09, 0x52, 0x08, 0x75, 0x73, 0x65, 0x72, 0x6e, 0x61, 0x6d, 0x65, 0x12, 0x16, 0x0a,
+	0x06, 0x75, 0x73, 0x65, 0x72, 0x49, 0x64, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x06, 0x75,
+	0x73, 0x65, 0x72, 0x49, 0x64, 0x42, 0x2f, 0x0a, 0x21, 0x69, 0x6f, 0x2e, 0x67, 0x69, 0x74, 0x68,
+	0x75, 0x62, 0x2e, 0x68, 0x64, 0x66, 0x67, 0x31, 0x35, 0x39, 0x2e, 0x67, 0x61, 0x6d, 0x65, 0x2e,
+	0x64, 0x6f, 0x6d, 0x61, 0x69, 0x6e, 0x2e, 0x64, 0x74, 0x6f, 0x5a, 0x0a, 0x2e, 0x2f, 0x70, 0x72,
+	0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -121,9 +441,15 @@ func file_protos_protobuf_GameMessage_proto_rawDescGZIP() []byte {
 	return file_protos_protobuf_GameMessage_proto_rawDescData
 }
 
-var file_protos_protobuf_GameMessage_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
+var file_protos_protobuf_GameMessage_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_protos_protobuf_GameMessage_proto_goTypes = []interface{}{
-	(*Message)(nil), // 0: GameMessage.Message
+	(*Message)(nil),      // 0: GameMessage.Message
+	(*HeartBeatReq)(nil), // 1: GameMessage.HeartBeatReq
+	(*HeartBeatRes)(nil), // 2: GameMessage.HeartBeatRes
+	(*RegisterReq)(nil),  // 3: GameMessage.RegisterReq
+	(*RegisterRes)(nil),  // 4: GameMessage.RegisterRes
+	(*LoginReq)(nil),     // 5: GameMessage.LoginReq
+	(*LoginRes)(nil),     // 6: GameMessage.LoginRes
 }
 var file_protos_protobuf_GameMessage_proto_depIdxs = []int32{
 	0, // [0:0] is the sub-list for method output_type
@@ -151,6 +477,78 @@ func file_protos_protobuf_GameMessage_proto_init() {
 				return nil
 			}
 		}
+		file_protos_protobuf_GameMessage_proto_msgTypes[1].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*HeartBeatReq); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_protos_protobuf_GameMessage_proto_msgTypes[2].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*HeartBeatRes); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_protos_protobuf_GameMessage_proto_msgTypes[3].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*RegisterReq); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_protos_protobuf_GameMessage_proto_msgTypes[4].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*RegisterRes); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_protos_protobuf_GameMessage_proto_msgTypes[5].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*LoginReq); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_protos_protobuf_GameMessage_proto_msgTypes[6].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*LoginRes); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
@@ -158,7 +556,7 @@ func file_protos_protobuf_GameMessage_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_protos_protobuf_GameMessage_proto_rawDesc,
 			NumEnums:      0,
-			NumMessages:   1,
+			NumMessages:   7,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

@@ -28,3 +28,12 @@ func Load(user UserInfo, c *Client, msg interface{}) {
 		"data": &protobuf.LoadRes{},
 	}
 }
+
+// 心跳机制
+func HeartBeat(user UserInfo, c *Client, msg interface{}) {
+	c.Send <- map[string]interface{}{
+		"protocol": ProtocolHeartBeatRes,
+		"code": CodeSuccess,
+		"data": &protobuf.HeartBeatRes{},
+	}
+}
