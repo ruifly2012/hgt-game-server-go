@@ -223,6 +223,7 @@ func (c *Client) read() {
 			fmt.Println("read 关闭")
 			return
 		}
+		fmt.Println("用户请求数据体：", message)
 		// 基础结构体
 		baseMessage := &protobuf.Message{}
 		// proto解码
