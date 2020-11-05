@@ -1150,7 +1150,7 @@ func (*SelectQuestionRes) Descriptor() ([]byte, []int) {
 	return file_protos_protobuf_soup_SoupMessage_proto_rawDescGZIP(), []int{23}
 }
 
-// 2900 大厅推送消息
+// -2900 大厅推送消息
 type HallPush struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -1189,7 +1189,7 @@ func (*HallPush) Descriptor() ([]byte, []int) {
 	return file_protos_protobuf_soup_SoupMessage_proto_rawDescGZIP(), []int{24}
 }
 
-// 2901 房间推送消息
+// -2901 房间推送消息
 type RoomPush struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache

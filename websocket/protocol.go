@@ -53,7 +53,7 @@ const ProtocolLoadReq int64 = 2012
 const ProtocolLoadRes int64 = -2012
 
 // 房间推送消息
-const ProtocolRoomPush int64 = 2901
+const ProtocolRoomPush int64 = -2901
 
 // 消息信息
 type MessageInfo struct {
