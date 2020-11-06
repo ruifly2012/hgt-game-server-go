@@ -8,17 +8,16 @@ import (
 	"server/model/mongo"
 	"server/protobuf"
 	"time"
-
 	"github.com/orcaman/concurrent-map"
 )
 
-// 聊天回答 0:未回答 1:不相关 2:是 3:否 4:半对
+// 聊天回答 1:未回答 2:不相关 3:是 4:否 5:半对
 const (
-	AnswerStatusUnanswered = 0
-	AnswerStatusNotRelate  = 1
-	AnswerStatusYes        = 2
-	AnswerStatusNot        = 3
-	AnswerStatusHalf       = 4
+	AnswerStatusUnanswered = 1
+	AnswerStatusNotRelate  = 2
+	AnswerStatusYes        = 3
+	AnswerStatusNot        = 4
+	AnswerStatusHalf       = 5
 )
 
 var AnswerStatusManage = map[uint32]bool{
