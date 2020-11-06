@@ -235,6 +235,13 @@ func LeaveRoom(user UserInfo, c *Client, msg interface{}) {
 	}
 	// 找房间
 	if room, ok := RoomManage.GetRoomInfo(roomId); ok {
+		if room.Status == RoomStatusGaming || room.Status == RoomStatusSelectQuestion {
+			c.Send <- map[string]interface{}{
+				"protocol": ProtocolLeaveRoomRes,
+				"code": CodeCantLeaveCauseGaming,
+			}
+			return
+		}
 		// 找群里面是否有这个用户
 		if deleteUser, ok := room.GetRoomMember(user.UserId); ok {
 			lastOneFlag := false

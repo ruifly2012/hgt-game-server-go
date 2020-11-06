@@ -40,6 +40,8 @@ const (
 	// ---------- 离开房间相关
 	// 离开房间失败
 	CodeLeaveRoomFailure = 20400
+	// 游戏中 不能离开房间
+	CodeCantLeaveCauseGaming = 20401
 
 	// ---------- 准备相关
 	// 准备失败
