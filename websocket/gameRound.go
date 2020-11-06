@@ -52,6 +52,65 @@ var RoundManage = RoundManageStruct{
 	cmap.New(),
 }
 
+// 获取对局信息
+func (rm *RoundManageStruct) GetRoundInfo(roomId string) (RoundInfo, bool) {
+	if roundInterface, ok := rm.Get(roomId); ok {
+		return roundInterface.(RoundInfo), ok
+	}
+
+	return RoundInfo{}, false
+}
+
+// 获取对局成员信息
+func (round *RoundInfo) GetRoundMemberInfoMap() map[string]MemberInfo {
+	memberList := make(map[string]MemberInfo)
+
+	// Insert items to temporary map.
+	for item := range round.Member.IterBuffered() {
+		memberList[item.Key] = item.Val.(MemberInfo)
+	}
+
+	return memberList
+}
+
+// 获取对局所有聊天数据
+func (round *RoundInfo) GetRoundChatList() []*protobuf.ChatMessageRes {
+	var chatList []*protobuf.ChatMessageRes
+
+	for e := round.ChatQueue.Front(); e != nil; e = e.Next() {
+		messageId := (e.Value).(string)
+		message, ok := round.GetRoundChatInfo(messageId)
+		if ok {
+			chatList = append(chatList, message.ChangeChatToProtobuf())
+		}
+	}
+
+	return chatList
+}
+
+// 获取对局所有聊天数据
+func (round *RoundInfo) GetRoundChatMap() map[string]ChatInfo {
+	chatList := make(map[string]ChatInfo)
+
+	// Insert items to temporary map.
+	for item := range round.ChatList.IterBuffered() {
+		chatList[item.Key] = item.Val.(ChatInfo)
+	}
+
+	return chatList
+}
+
+
+// 获取对局一条聊天数据
+func (round *RoundInfo) GetRoundChatInfo(messageId string) (ChatInfo, bool) {
+	if messageInterface, ok := round.ChatList.Get(messageId); ok {
+		return messageInterface.(ChatInfo), ok
+	}
+
+	return ChatInfo{}, false
+}
+
+
 // 创建对局
 func (room *RoomInfo) CreateRound() {
 	roundInfo := RoundInfo{
@@ -62,7 +121,7 @@ func (room *RoomInfo) CreateRound() {
 	roundInfo.ChatList = cmap.New()
 	roundInfo.Member = cmap.New()
 	roundInfo.ChatQueue = list.New()
-	for userId, member := range room.GetRoomMemberMap() {
+	for userId, member := range room.GetRoomMemberInfoMap() {
 		roundInfo.Member.Set(userId, member)
 	}
 	RoundManage.Set(room.RoomId, roundInfo)
@@ -71,10 +130,10 @@ func (room *RoomInfo) CreateRound() {
 // 聊天或提问消息
 func Chat(user UserInfo, c *Client, msg interface{}) {
 	lastSpeakTime := time.Now().Unix()
-	if lastSpeakTime - user.LastSpeakTime <= 2 {
+	if lastSpeakTime-user.LastSpeakTime <= 2 {
 		c.Send <- map[string]interface{}{
 			"protocol": ProtocolChatRes,
-			"code": CcodeChatFastLimit,
+			"code":     CcodeChatFastLimit,
 		}
 		return
 	}
@@ -85,7 +144,7 @@ func Chat(user UserInfo, c *Client, msg interface{}) {
 		if user.UserId == round.McUserId {
 			isMc = true
 		}
-		newMessage := protobuf.ChatMessageRes{
+		newChat := ChatInfo{
 			Id:      messageId,
 			Content: chatReq.Content,
 			Answer:  AnswerStatusUnanswered,
@@ -95,21 +154,21 @@ func Chat(user UserInfo, c *Client, msg interface{}) {
 			Mc:      isMc,
 		}
 		// 加入消息列表
-		round.ChatList.Set(messageId, newMessage)
+		round.ChatList.Set(messageId, newChat)
 		round.ChatQueue.PushBack(messageId)
 		RoundManage.Set(user.RoomId, round)
 		// 更新用户最后一次聊天时间
 		user = user.SetLastSpeakTime(lastSpeakTime)
 		// 往对局成员推送消息
-		for userId, member := range round.GetRoundMemberMap() {
-			fmt.Println("聊天消息发送："+member.AvaName, "内容："+newMessage.Content)
+		for userId, member := range round.GetRoundMemberInfoMap() {
+			fmt.Println("聊天消息发送："+member.AvaName, "内容："+newChat.Content)
 			if client, ok := Manager.clients[userId]; ok {
 				client.Send <- map[string]interface{}{
 					"protocol": ProtocolRoomPush,
 					"code":     200,
 					"data": &protobuf.RoomPush{
 						ChangedMsg: []*protobuf.ChatMessageRes{
-							&newMessage,
+							newChat.ChangeChatToProtobuf(),
 						},
 					},
 				}
@@ -119,7 +178,7 @@ func Chat(user UserInfo, c *Client, msg interface{}) {
 		// 对局不存在
 		c.Send <- map[string]interface{}{
 			"protocol": ProtocolChatRes,
-			"code": CodeRoundNotExist,
+			"code":     CodeRoundNotExist,
 		}
 	}
 }
@@ -133,18 +192,18 @@ func Answer(user UserInfo, c *Client, msg interface{}) {
 			//只有mc才具备回复
 			c.Send <- map[string]interface{}{
 				"protocol": ProtocolAnswerRes,
-				"code": CodeJustMcToReply,
+				"code":     CodeJustMcToReply,
 			}
 			return
 		}
 		if _, ok := AnswerStatusManage[answerReq.Answer]; ok {
-			if chatMessage, ok := round.GetRoundChat(answerReq.Id); ok {
+			if chatMessage, ok := round.GetRoundChatInfo(answerReq.Id); ok {
 				chatMessage.Answer = answerReq.Answer
 				// 更新消息
 				round.ChatList.Set(answerReq.Id, chatMessage)
 				RoundManage.Set(user.RoomId, round)
 				// 推送更新
-				for userId, _ := range round.GetRoundMemberMap() {
+				for userId, _ := range round.GetRoundMemberInfoMap() {
 					fmt.Println("聊天回答结果发送：", chatMessage.Answer)
 					if client, ok := Manager.clients[userId]; ok {
 						client.Send <- map[string]interface{}{
@@ -152,7 +211,7 @@ func Answer(user UserInfo, c *Client, msg interface{}) {
 							"code":     200,
 							"data": &protobuf.RoomPush{
 								ChangedMsg: []*protobuf.ChatMessageRes{
-									&chatMessage,
+									chatMessage.ChangeChatToProtobuf(),
 								},
 							},
 						}
@@ -162,7 +221,7 @@ func Answer(user UserInfo, c *Client, msg interface{}) {
 				// 回答的消息不存在
 				c.Send <- map[string]interface{}{
 					"protocol": ProtocolAnswerRes,
-					"code": CodeChatNotExist,
+					"code":     CodeChatNotExist,
 				}
 				return
 			}
@@ -170,7 +229,7 @@ func Answer(user UserInfo, c *Client, msg interface{}) {
 			// 答案类型不存在
 			c.Send <- map[string]interface{}{
 				"protocol": ProtocolAnswerRes,
-				"code": CodeAnswerTypeWrong,
+				"code":     CodeAnswerTypeWrong,
 			}
 			return
 		}
@@ -178,7 +237,7 @@ func Answer(user UserInfo, c *Client, msg interface{}) {
 		// 对局不存在
 		c.Send <- map[string]interface{}{
 			"protocol": ProtocolAnswerRes,
-			"code": CodeRoundNotExist,
+			"code":     CodeRoundNotExist,
 		}
 	}
 }
@@ -192,7 +251,7 @@ func End(user UserInfo, c *Client, msg interface{}) {
 			// 只有mc才具备公布汤底
 			c.Send <- map[string]interface{}{
 				"protocol": ProtocolEndRes,
-				"code": CodeEndGameFailure,
+				"code":     CodeEndGameFailure,
 			}
 			return
 		}
@@ -202,13 +261,13 @@ func End(user UserInfo, c *Client, msg interface{}) {
 		if room.Status != RoomStatusGaming {
 			c.Send <- map[string]interface{}{
 				"protocol": ProtocolEndRes,
-				"code": CodeNotGamingCantEnd,
+				"code":     CodeNotGamingCantEnd,
 			}
 			return
 		}
 		// 保存数据
 		go round.saveRoundData()
-		for userId, member := range room.GetRoomMemberMap() {
+		for userId, member := range room.GetRoomMemberInfoMap() {
 			if userId == room.McUserId {
 				member.Status = MemberStatusPreparing
 			} else {
@@ -220,7 +279,7 @@ func End(user UserInfo, c *Client, msg interface{}) {
 		// 更新房间数据
 		RoomManage.Set(user.RoomId, room)
 		// 推送房间数据
-		for userId, _ := range room.GetRoomMemberMap() {
+		for userId, _ := range room.GetRoomMemberInfoMap() {
 			if client, ok := Manager.clients[userId]; ok {
 				// 推送整个 roomPush
 				client.Send <- map[string]interface{}{
@@ -230,7 +289,7 @@ func End(user UserInfo, c *Client, msg interface{}) {
 						Status:      RoomStatusPreparing,
 						SeatsChange: room.GetRoomMemberList(),
 						RoomId:      user.RoomId,
-						Question:    &room.Question,
+						Question: 	 room.Question.ChangeChatToProtobuf(),
 					},
 				}
 			}
@@ -246,7 +305,7 @@ func (round *RoundInfo) saveRoundData() {
 	roundRecord["McUserId"] = round.McUserId
 	roundRecord["QuestionId"] = round.QuestionId
 	memberList := make(map[string]interface{})
-	for userId, member := range round.GetRoundMemberMap() {
+	for userId, member := range round.GetRoundMemberInfoMap() {
 		memberList[userId] = member
 	}
 	roundRecord["Member"] = memberList
@@ -257,8 +316,8 @@ func (round *RoundInfo) saveRoundData() {
 		chatList[messageId] = message
 	}
 	roundChat := map[string]interface{}{
-		"roundId": roundId, // 记录对局的mongoId
-		"roomId": round.RoomId,
+		"roundId":  roundId, // 记录对局的mongoId
+		"roomId":   round.RoomId,
 		"chatList": chatList,
 	}
 	mongo.RoundChat().InsertOne(context.TODO(), roundChat)

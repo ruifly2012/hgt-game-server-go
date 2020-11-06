@@ -38,7 +38,7 @@ type RoomInfo struct {
 	// 房间状态 0：闲置 1：准备中 2：选题中 3：游戏中
 	Status uint32
 	// 问题
-	Question protobuf.QuestionRes
+	Question QuestionInfo
 	// 成员列表
 	Member cmap.ConcurrentMap
 }
@@ -49,6 +49,49 @@ type RoomManageStruct struct {
 
 var RoomManage = RoomManageStruct{
 	cmap.New(),
+}
+
+// 获取roomInfo
+func (rm *RoomManageStruct) GetRoomInfo(roomId string) (RoomInfo, bool) {
+	if roomInterface, ok := rm.Get(roomId); ok {
+		return roomInterface.(RoomInfo), ok
+	}
+
+	return RoomInfo{}, false
+}
+
+
+// 获取房间成员信息
+func (room *RoomInfo) GetRoomMemberInfoMap() map[string]MemberInfo {
+	memberList := make(map[string]MemberInfo)
+
+	// Insert items to temporary map.
+	for item := range room.Member.IterBuffered() {
+		memberList[item.Key] = item.Val.(MemberInfo)
+	}
+
+	return memberList
+}
+
+// 获取房间的成员info
+func (room *RoomInfo) GetRoomMemberInfo(userId string) (MemberInfo, bool) {
+	if userInterface, ok := room.Member.Get(userId); ok {
+		return userInterface.(MemberInfo), ok
+	}
+
+	return MemberInfo{}, false
+}
+
+// 获取所有成员
+func (room *RoomInfo) GetRoomMemberList() []*protobuf.RoomMemberSeatRes {
+	var roomMembers []*protobuf.RoomMemberSeatRes
+
+	for item := range room.Member.IterBuffered() {
+		member := item.Val.(MemberInfo)
+		roomMembers = append(roomMembers, member.ChangeRoomMemberToProtobuf())
+	}
+
+	return roomMembers
 }
 
 // 创建房间
@@ -72,7 +115,7 @@ func CreateRoom(user UserInfo, c *Client, msg interface{}) {
 	}
 	roomId, _ := app.GenerateSnowflakeID()
 	var Member = cmap.New()
-	Member.Set(user.UserId, protobuf.RoomMemberSeatRes{
+	Member.Set(user.UserId, MemberInfo{
 		Aid:     user.UserId,
 		AvaName: user.Username,
 		AvaHead: user.Avatar,
@@ -116,7 +159,7 @@ func JoinRoom(user UserInfo, c *Client, msg interface{}) {
 	// 找房间
 	if room, ok := RoomManage.GetRoomInfo(joinRoomReq.RoomId); ok {
 		// 判断用户是否在房间里面
-		newUser, memberExist := room.GetRoomMember(user.UserId)
+		newUser, memberExist := room.GetRoomMemberInfo(user.UserId)
 		// 游戏已经开局 && 用户不在
 		if room.Status == RoomStatusGaming && !memberExist {
 			c.Send <- map[string]interface{}{
@@ -139,7 +182,7 @@ func JoinRoom(user UserInfo, c *Client, msg interface{}) {
 			user = user.SetRoomId(joinRoomReq.RoomId)
 			// 设置用户状态
 			user = user.SetStatus(MemberStatusInRoom)
-			newUser = protobuf.RoomMemberSeatRes{
+			newUser = MemberInfo{
 				Aid:     user.UserId,
 				AvaName: user.Username,
 				AvaHead: user.Avatar,
@@ -153,7 +196,7 @@ func JoinRoom(user UserInfo, c *Client, msg interface{}) {
 		}
 		fmt.Println("用户：" + user.Username + " 加入房间：" + joinRoomReq.RoomId)
 		// 通知群里面所有人
-		for _, info := range room.GetRoomMemberMap() {
+		for _, info := range room.GetRoomMemberInfoMap() {
 			if client, ok := Manager.clients[info.Aid]; ok {
 				if info.Aid == newUser.Aid {
 					// 获取完整对局数据
@@ -181,11 +224,11 @@ func JoinRoom(user UserInfo, c *Client, msg interface{}) {
 					}
 					if room.Status == RoomStatusGaming {
 						roomQuestion := protobuf.QuestionRes{
-							Id: room.Question.Id,
-							Title: room.Question.Title,
-							Question: room.Question.Question,
+							Id:       room.Question.Id,
+							Title:    room.Question.Title,
+							Question: room.Question.Description,
 						}
-						if  room.McUserId == newUser.Aid {
+						if room.McUserId == newUser.Aid {
 							roomQuestion.Content = room.Question.Content
 						}
 						roomPush.Question = &roomQuestion
@@ -205,7 +248,7 @@ func JoinRoom(user UserInfo, c *Client, msg interface{}) {
 						"code":     CodeSuccess,
 						"data": &protobuf.RoomPush{
 							SeatsChange: []*protobuf.RoomMemberSeatRes{
-								&newUser,
+								newUser.ChangeRoomMemberToProtobuf(),
 							},
 						},
 					}
@@ -238,12 +281,12 @@ func LeaveRoom(user UserInfo, c *Client, msg interface{}) {
 		if room.Status == RoomStatusGaming || room.Status == RoomStatusSelectQuestion {
 			c.Send <- map[string]interface{}{
 				"protocol": ProtocolLeaveRoomRes,
-				"code": CodeCantLeaveCauseGaming,
+				"code":     CodeCantLeaveCauseGaming,
 			}
 			return
 		}
 		// 找群里面是否有这个用户
-		if deleteUser, ok := room.GetRoomMember(user.UserId); ok {
+		if deleteUser, ok := room.GetRoomMemberInfo(user.UserId); ok {
 			lastOneFlag := false
 			// 判断当前成员列表是不是最后一个人
 			if len(room.Member) == 1 {
@@ -261,23 +304,23 @@ func LeaveRoom(user UserInfo, c *Client, msg interface{}) {
 				RoomManage.Remove(roomId)
 			} else {
 				var memberSeats = make([]*protobuf.RoomMemberSeatRes, 0)
-				memberSeats = append(memberSeats, &deleteUser)
+				memberSeats = append(memberSeats, deleteUser.ChangeRoomMemberToProtobuf())
 				if room.OwnerUserId == deleteUser.Aid {
 					// 离开的人是房主 切换房主
 					changeOwner, ok := ChangeOwner(deleteUser.Aid, roomId)
-					if(ok) {
-						memberSeats = append(memberSeats, &changeOwner)
+					if ok {
+						memberSeats = append(memberSeats, changeOwner)
 					}
 				}
 				if room.McUserId == deleteUser.Aid {
 					// 离开的人是MC 切换MC
 					changeMc, ok := ChangeMC(deleteUser.Aid, roomId)
-					if(ok) {
-						memberSeats = append(memberSeats, &changeMc)
+					if ok {
+						memberSeats = append(memberSeats, changeMc)
 					}
 				}
 				// 并非最后一个人 给其他人推送当前人离开数据
-				for _, info := range room.GetRoomMemberMap() {
+				for _, info := range room.GetRoomMemberInfoMap() {
 					if client, ok := Manager.clients[info.Aid]; ok {
 						deleteUser.Leave = true
 						client.Send <- map[string]interface{}{
@@ -293,7 +336,7 @@ func LeaveRoom(user UserInfo, c *Client, msg interface{}) {
 			// 给当前用户推送离开房间返回
 			c.Send <- map[string]interface{}{
 				"protocol": ProtocolLeaveRoomRes,
-				"code": CodeSuccess,
+				"code":     CodeSuccess,
 			}
 		} else {
 			// 用户不在房间里面
@@ -326,7 +369,7 @@ func Prepare(user UserInfo, c *Client, msg interface{}) {
 			}
 			return
 		}
-		if memberInfo, ok := room.GetRoomMember(user.UserId); ok {
+		if memberInfo, ok := room.GetRoomMemberInfo(user.UserId); ok {
 			// mc准备 则考虑游戏是否要开始
 			if user.UserId == room.McUserId {
 				var roomMemberCount = room.Member.Count()
@@ -342,7 +385,7 @@ func Prepare(user UserInfo, c *Client, msg interface{}) {
 				// 创建用户ids 长度 - mc
 				var userIds = make([]string, roomMemberCount-1)
 				// 判断用户是否都准备完毕
-				for userId, member := range room.GetRoomMemberMap() {
+				for userId, member := range room.GetRoomMemberInfoMap() {
 					if member.Status != MemberStatusPreparing {
 						// 玩家未准备
 						c.Send <- map[string]interface{}{
@@ -381,7 +424,7 @@ func Prepare(user UserInfo, c *Client, msg interface{}) {
 					})
 				}
 				// 所有玩家已经准备完毕 推送玩家进入游戏
-				for userId, info := range room.GetRoomMemberMap() {
+				for userId, info := range room.GetRoomMemberInfoMap() {
 					// 将玩家改成游戏中状态
 					info.Status = MemberStatusGaming
 					room.Member.Set(userId, info)
@@ -430,7 +473,7 @@ func Prepare(user UserInfo, c *Client, msg interface{}) {
 				// 设置用户状态 准备中
 				user = user.SetStatus(MemberStatusPreparing)
 				// 推送消息
-				for _, info := range room.GetRoomMemberMap() {
+				for _, info := range room.GetRoomMemberInfoMap() {
 					if client, ok := Manager.clients[info.Aid]; ok {
 						if info.Aid != user.UserId {
 							client.Send <- map[string]interface{}{
@@ -438,7 +481,7 @@ func Prepare(user UserInfo, c *Client, msg interface{}) {
 								"code":     CodeSuccess,
 								"data": &protobuf.RoomPush{
 									SeatsChange: []*protobuf.RoomMemberSeatRes{
-										&info,
+										info.ChangeRoomMemberToProtobuf(),
 									},
 								},
 							}
@@ -496,25 +539,35 @@ func SelectQuestion(user UserInfo, c *Client, msg interface{}) {
 			}
 			return
 		}
-		room.Question = protobuf.QuestionRes{
-			Id:       question.QuestionId,
-			Title:    question.Title,
-			Question: question.Description,
-			Content:  question.Content,
+		room.Question = QuestionInfo{
+			Id:          question.QuestionId,
+			Title:       question.Title,
+			Description: question.Description,
+			Content:     question.Content,
 		}
 		// 游戏开始
 		room.Status = RoomStatusGaming
 		RoomManage.Set(user.RoomId, room)
+		protobufQuestion := protobuf.QuestionRes{
+			Id:       room.Question.Id,
+			Title:    room.Question.Title,
+			Question: room.Question.Description,
+		}
 		// 通知群里面所有人
-		for _, info := range room.GetRoomMemberMap() {
+		for _, info := range room.GetRoomMemberInfoMap() {
 			if client, ok := Manager.clients[info.Aid]; ok {
+				if client.UserId == room.McUserId {
+					protobufQuestion.Content = room.Question.Content
+				} else {
+					protobufQuestion.Content = ""
+				}
 				client.Send <- map[string]interface{}{
 					"protocol": ProtocolRoomPush,
 					"code":     CodeSuccess,
 					"data": &protobuf.RoomPush{
 						Status:   RoomStatusGaming,
 						RoomId:   user.RoomId,
-						Question: &room.Question,
+						Question: &protobufQuestion,
 					},
 				}
 			}
@@ -532,35 +585,35 @@ func SelectQuestion(user UserInfo, c *Client, msg interface{}) {
 }
 
 // 换房主
-func ChangeOwner(sourceOwnerUserId string, roomId string) (protobuf.RoomMemberSeatRes, bool) {
+func ChangeOwner(sourceOwnerUserId string, roomId string) (*protobuf.RoomMemberSeatRes, bool) {
 	room, _ := RoomManage.GetRoomInfo(roomId)
-	for _, info := range room.GetRoomMemberMap() {
+	for _, info := range room.GetRoomMemberInfoMap() {
 		if info.Aid != sourceOwnerUserId {
 			info.Owner = true
 			room.Member.Set(info.Aid, info)
 			room.OwnerUserId = info.Aid
 			RoomManage.Set(roomId, room)
-			return info, true
+			return info.ChangeRoomMemberToProtobuf(), true
 		}
 	}
 
-	return protobuf.RoomMemberSeatRes{}, false
+	return &protobuf.RoomMemberSeatRes{}, false
 }
 
 // 换MC
-func ChangeMC(sourceOwnerUserId string, roomId string) (protobuf.RoomMemberSeatRes, bool) {
+func ChangeMC(sourceOwnerUserId string, roomId string) (*protobuf.RoomMemberSeatRes, bool) {
 	room, _ := RoomManage.GetRoomInfo(roomId)
-	for _, info := range room.GetRoomMemberMap() {
+	for _, info := range room.GetRoomMemberInfoMap() {
 		if info.Aid != sourceOwnerUserId {
 			info.Mc = true
 			room.Member.Set(info.Aid, info)
 			room.McUserId = info.Aid
 			RoomManage.Set(roomId, room)
-			return info, true
+			return info.ChangeRoomMemberToProtobuf(), true
 		}
 	}
 
-	return protobuf.RoomMemberSeatRes{}, false
+	return &protobuf.RoomMemberSeatRes{}, false
 }
 
 // 测试请求
@@ -589,7 +642,7 @@ func getQuestionList(room RoomInfo) []*protobuf.QuestionRes {
 	// 创建用户ids 长度 - mc
 	var userIds = make([]string, room.Member.Count()-1)
 	// 判断用户是否都准备完毕/游戏中
-	for userId, member := range room.GetRoomMemberMap() {
+	for userId, member := range room.GetRoomMemberInfoMap() {
 		if member.Status != MemberStatusPreparing && member.Status != MemberStatusGaming {
 			// 玩家未准备
 			return nil
