@@ -203,7 +203,7 @@ func Answer(user UserInfo, c *Client, msg interface{}) {
 				round.ChatList.Set(answerReq.Id, chatMessage)
 				RoundManage.Set(user.RoomId, round)
 				// 推送更新
-				for userId, _ := range round.GetRoundMemberInfoMap() {
+				for userId := range round.GetRoundMemberInfoMap() {
 					fmt.Println("聊天回答结果发送：", chatMessage.Answer)
 					if client, ok := Manager.clients[userId]; ok {
 						client.Send <- map[string]interface{}{
@@ -279,7 +279,7 @@ func End(user UserInfo, c *Client, msg interface{}) {
 		// 更新房间数据
 		RoomManage.Set(user.RoomId, room)
 		// 推送房间数据
-		for userId, _ := range room.GetRoomMemberInfoMap() {
+		for userId := range room.GetRoomMemberInfoMap() {
 			if client, ok := Manager.clients[userId]; ok {
 				// 推送整个 roomPush
 				client.Send <- map[string]interface{}{
