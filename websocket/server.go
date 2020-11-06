@@ -95,19 +95,23 @@ func (manager *ClientManager) start() {
 		case c := <-manager.register: //新客户端加入
 			// 判断用户是否还在
 			if client, ok := manager.clients[c.UserId]; ok {
+				// 旧管道关闭
+				client.socket.Close()
 				client.socket = c.socket
+				manager.clients[c.UserId] = client
 			} else {
 				manager.clients[c.UserId] = c
 			}
 			userInfo, _ := GetUserInfo(c.UserId)
-			fmt.Println("新用户加入:"+userInfo.Username, "加入时间："+userInfo.InsertTime)
-			fmt.Println("当前总用户数量register：", len(manager.clients))
+			fmt.Println("新用户加入:"+userInfo.Username, "加入时间："+userInfo.InsertTime, "当前总用户数量：", len(manager.clients))
 		case c := <-manager.unregister: // 离开
-			if _, ok := manager.clients[c.UserId]; ok {
-				close(c.Send)
-				delete(manager.clients, c.UserId)
-				fmt.Println("用户离开：" + c.UserId)
-				fmt.Println("当前总用户数量unregister：", len(manager.clients))
+			if nc, ok := manager.clients[c.UserId]; ok {
+				c.socket.Close()
+				if nc.socket == c.socket {
+					close(c.Send)
+					delete(manager.clients, c.UserId)
+				}
+				fmt.Println("用户离开：" + c.UserId, "当前总用户数量：", len(manager.clients))
 			}
 			//case message := <-manager.broadcast: //读到广播管道数据后的处理
 			//	fmt.Println("当前总用户数量broadcast：", len(manager.clients))
@@ -150,7 +154,6 @@ func (c *Client) write() {
 		} else {
 			// 用户正常退出
 			Manager.unregister <- c
-			c.socket.Close()
 		}
 	}()
 
@@ -158,8 +161,7 @@ func (c *Client) write() {
 		select {
 		case message, ok := <-c.Send: //这个管道有了数据 写这个消息出去
 			if !ok {
-				// 发送关闭提示
-				c.socket.WriteMessage(websocket.CloseMessage, []byte{})
+				// 写数据有问题
 				return
 			}
 			protocol, _ := message["protocol"].(int64)
@@ -210,8 +212,8 @@ func (c *Client) read() {
 			go c.read()
 		} else {
 			// 用户正常退出
+			fmt.Println("读取不到，退出")
 			Manager.unregister <- c
-			c.socket.Close()
 		}
 	}()
 
@@ -219,8 +221,6 @@ func (c *Client) read() {
 		// 监听从 socket 获取数据
 		_, message, err := c.socket.ReadMessage()
 		if err != nil {
-			// 数据获取错误 退出登录
-			fmt.Println("read 关闭")
 			return
 		}
 		fmt.Println("用户请求数据体：", message)

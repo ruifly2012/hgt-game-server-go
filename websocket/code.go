@@ -74,6 +74,8 @@ const (
 	// ---------- 结束游戏相关
 	// 结束游戏失败
 	CodeEndGameFailure = 20800
+	// 游戏不在游戏中不能结束
+	CodeNotGamingCantEnd = 20801
 
 	// ---------- 聊天相关
 	// 聊天被限制

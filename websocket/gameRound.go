@@ -185,10 +185,18 @@ func End(user UserInfo, c *Client, msg interface{}) {
 			}
 			return
 		}
-		// 保存数据
-		go round.saveRoundData()
 		// 修改房间数据
 		room, _ := RoomManage.GetRoomInfo(user.RoomId)
+		// 游戏中才能结束游戏
+		if room.Status != RoomStatusGaming {
+			c.Send <- map[string]interface{}{
+				"protocol": ProtocolEndRes,
+				"code": CodeNotGamingCantEnd,
+			}
+			return
+		}
+		// 保存数据
+		go round.saveRoundData()
 		for userId, member := range room.GetRoomMemberMap() {
 			if userId == room.McUserId {
 				member.Status = MemberStatusPreparing
