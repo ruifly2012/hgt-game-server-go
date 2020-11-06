@@ -86,6 +86,8 @@ const (
 	CodeRoundNotExist = 20902
 	// 聊天记录不存在
 	CodeChatNotExist = 20903
+	// 说话太快了
+	CcodeChatFastLimit = 20904
 
 	// ---------- 成员相关
 	// 成员不是闲置状态

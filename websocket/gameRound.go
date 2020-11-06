@@ -7,6 +7,7 @@ import (
 	"server/app"
 	"server/model/mongo"
 	"server/protobuf"
+	"time"
 
 	"github.com/orcaman/concurrent-map"
 )
@@ -69,6 +70,14 @@ func (room *RoomInfo) CreateRound() {
 
 // 聊天或提问消息
 func Chat(user UserInfo, c *Client, msg interface{}) {
+	lastSpeakTime := time.Now().Unix()
+	if lastSpeakTime - user.LastSpeakTime <= 2 {
+		c.Send <- map[string]interface{}{
+			"protocol": ProtocolChatRes,
+			"code": CcodeChatFastLimit,
+		}
+		return
+	}
 	chatReq := msg.(*protobuf.ChatReq)
 	if round, ok := RoundManage.GetRoundInfo(user.RoomId); ok {
 		messageId, _ := app.GenerateSnowflakeID()
@@ -89,6 +98,8 @@ func Chat(user UserInfo, c *Client, msg interface{}) {
 		round.ChatList.Set(messageId, newMessage)
 		round.ChatQueue.PushBack(messageId)
 		RoundManage.Set(user.RoomId, round)
+		// 更新用户最后一次聊天时间
+		user = user.SetLastSpeakTime(lastSpeakTime)
 		// 往对局成员推送消息
 		for userId, member := range round.GetRoundMemberMap() {
 			fmt.Println("聊天消息发送："+member.AvaName, "内容："+newMessage.Content)

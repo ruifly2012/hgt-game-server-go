@@ -20,6 +20,8 @@ type UserInfo struct {
 	InsertTime string
 	// 最后一次更新时间
 	LastUpdateTime string
+	// 最后一次说话时间
+	LastSpeakTime int64
 }
 
 type UserManageStruct struct {
@@ -68,6 +70,14 @@ func (user UserInfo) SetStatus(status uint32) UserInfo {
 // 更新roomId
 func (user UserInfo) SetRoomId(roomId string) UserInfo {
 	user.RoomId = roomId
+	UserManage.Set(user.UserId, user)
+
+	return user
+}
+
+// 更新最后一次说话时间
+func (user UserInfo) SetLastSpeakTime(time int64) UserInfo {
+	user.LastSpeakTime = time
 	UserManage.Set(user.UserId, user)
 
 	return user
