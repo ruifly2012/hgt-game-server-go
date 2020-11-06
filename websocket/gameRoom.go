@@ -253,13 +253,21 @@ func LeaveRoom(user UserInfo, c *Client, msg interface{}) {
 				// 房间最后一个人退出，房间销毁
 				RoomManage.Remove(roomId)
 			} else {
+				var memberSeats = make([]*protobuf.RoomMemberSeatRes, 0)
+				memberSeats = append(memberSeats, &deleteUser)
 				if room.OwnerUserId == deleteUser.Aid {
 					// 离开的人是房主 切换房主
-					ChangeOwner(deleteUser.Aid, roomId)
+					changeOwner, ok := ChangeOwner(deleteUser.Aid, roomId)
+					if(ok) {
+						memberSeats = append(memberSeats, &changeOwner)
+					}
 				}
 				if room.McUserId == deleteUser.Aid {
 					// 离开的人是MC 切换MC
-					ChangeMC(deleteUser.Aid, roomId)
+					changeMc, ok := ChangeMC(deleteUser.Aid, roomId)
+					if(ok) {
+						memberSeats = append(memberSeats, &changeMc)
+					}
 				}
 				// 并非最后一个人 给其他人推送当前人离开数据
 				for _, info := range room.GetRoomMemberMap() {
@@ -269,13 +277,16 @@ func LeaveRoom(user UserInfo, c *Client, msg interface{}) {
 							"protocol": ProtocolRoomPush,
 							"code":     CodeSuccess,
 							"data": &protobuf.RoomPush{
-								SeatsChange: []*protobuf.RoomMemberSeatRes{
-									&deleteUser,
-								},
+								SeatsChange: memberSeats,
 							},
 						}
 					}
 				}
+			}
+			// 给当前用户推送离开房间返回
+			c.Send <- map[string]interface{}{
+				"protocol": ProtocolLeaveRoomRes,
+				"code": CodeSuccess,
 			}
 		} else {
 			// 用户不在房间里面
@@ -384,10 +395,18 @@ func Prepare(user UserInfo, c *Client, msg interface{}) {
 				}
 			} else {
 				// 你已经准备 请勿重复准备
-				if memberInfo.Status == MemberStatusPreparing {
+				if memberInfo.Status == MemberStatusPreparing && prepare.Ok {
 					c.Send <- map[string]interface{}{
 						"protocol": ProtocolPrepareRes,
 						"code":     CodeYourAlreadyPrepare,
+					}
+					return
+				}
+				// 你已经取消 请勿重复取消
+				if memberInfo.Status == MemberStatusInRoom && !prepare.Ok {
+					c.Send <- map[string]interface{}{
+						"protocol": ProtocolPrepareRes,
+						"code":     CodeYourAlreadyCancel,
 					}
 					return
 				}
@@ -506,27 +525,35 @@ func SelectQuestion(user UserInfo, c *Client, msg interface{}) {
 }
 
 // 换房主
-func ChangeOwner(sourceOwnerUserId string, roomId string) {
+func ChangeOwner(sourceOwnerUserId string, roomId string) (protobuf.RoomMemberSeatRes, bool) {
 	room, _ := RoomManage.GetRoomInfo(roomId)
 	for _, info := range room.GetRoomMemberMap() {
 		if info.Aid != sourceOwnerUserId {
+			info.Owner = true
+			room.Member.Set(info.Aid, info)
 			room.OwnerUserId = info.Aid
 			RoomManage.Set(roomId, room)
-			break
+			return info, true
 		}
 	}
+
+	return protobuf.RoomMemberSeatRes{}, false
 }
 
 // 换MC
-func ChangeMC(sourceOwnerUserId string, roomId string) {
+func ChangeMC(sourceOwnerUserId string, roomId string) (protobuf.RoomMemberSeatRes, bool) {
 	room, _ := RoomManage.GetRoomInfo(roomId)
 	for _, info := range room.GetRoomMemberMap() {
 		if info.Aid != sourceOwnerUserId {
+			info.Mc = true
+			room.Member.Set(info.Aid, info)
 			room.McUserId = info.Aid
 			RoomManage.Set(roomId, room)
-			break
+			return info, true
 		}
 	}
+
+	return protobuf.RoomMemberSeatRes{}, false
 }
 
 // 测试请求

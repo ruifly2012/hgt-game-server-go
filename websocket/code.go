@@ -52,6 +52,8 @@ const (
 	CodeGameStartRefusePrepare = 20503
 	// 你已经准备 请勿重复准备
 	CodeYourAlreadyPrepare = 20504
+	// 你已经取消 请勿重复取消
+	CodeYourAlreadyCancel = 20505
 
 	// ---------- 踢人相关
 	// 踢人失败
