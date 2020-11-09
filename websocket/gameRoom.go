@@ -266,7 +266,7 @@ func JoinRoom(user UserInfo, c *Client, msg interface{}) {
 }
 
 // 离开房间
-func LeaveRoom(user UserInfo, c *Client, msg interface{}) {
+func LeaveRoom(user UserInfo, c *Client, _ interface{}) {
 	var roomId = user.RoomId
 	if roomId == "" {
 		// 当前用户没有处于房间
@@ -407,12 +407,12 @@ func Prepare(user UserInfo, c *Client, msg interface{}) {
 				if len(userIds) >= 0 {
 					// 获取题目
 					questionLog := make([]model.UserQuestionLog, 0)
-					app.DB.Cols("question_id").In("user_id", userIds).Find(&questionLog)
+					_ = app.DB.Cols("question_id").In("user_id", userIds).Find(&questionLog)
 					var unQuestionIds = make([]string, 0)
 					for _, log := range questionLog {
 						unQuestionIds = append(unQuestionIds, log.QuestionId)
 					}
-					app.DB.NotIn("question_id", unQuestionIds).Limit(10).Find(&questionList)
+					_ = app.DB.NotIn("question_id", unQuestionIds).Limit(10).Find(&questionList)
 				}
 				// 处理问题列表
 				for _, question := range questionList {
@@ -617,7 +617,7 @@ func ChangeMC(sourceOwnerUserId string, roomId string) (*protobuf.RoomMemberSeat
 }
 
 // 测试请求
-func Test(user UserInfo, c *Client, msg interface{}) {
+func Test(_ UserInfo, _ *Client, _ interface{}) {
 	fmt.Println("房间所有数据")
 	for _, roomInterface := range RoomManage.Items() {
 		room := roomInterface.(RoomInfo)
@@ -659,12 +659,12 @@ func getQuestionList(room RoomInfo) []*protobuf.QuestionRes {
 	if len(userIds) >= 0 {
 		// 获取题目
 		questionLog := make([]model.UserQuestionLog, 0)
-		app.DB.Cols("question_id").In("user_id", userIds).Find(&questionLog)
+		_ = app.DB.Cols("question_id").In("user_id", userIds).Find(&questionLog)
 		var unQuestionIds = make([]string, 0)
 		for _, log := range questionLog {
 			unQuestionIds = append(unQuestionIds, log.QuestionId)
 		}
-		app.DB.NotIn("question_id", unQuestionIds).Limit(10).Find(&questionList)
+		_ = app.DB.NotIn("question_id", unQuestionIds).Limit(10).Find(&questionList)
 	}
 	// 处理问题列表
 	for _, question := range questionList {

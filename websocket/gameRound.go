@@ -242,7 +242,7 @@ func Answer(user UserInfo, c *Client, msg interface{}) {
 }
 
 // 对局结束
-func End(user UserInfo, c *Client, msg interface{}) {
+func End(user UserInfo, c *Client, _ interface{}) {
 	fmt.Println("游戏结束")
 	if round, ok := RoundManage.GetRoundInfo(user.RoomId); ok {
 		// 判断是否时mc
@@ -319,7 +319,7 @@ func (round *RoundInfo) saveRoundData() {
 		"roomId":   round.RoomId,
 		"chatList": chatList,
 	}
-	mongo.RoundChat().InsertOne(context.TODO(), roundChat)
+	_, _ = mongo.RoundChat().InsertOne(context.TODO(), roundChat)
 	// @todo 记录笔记数据
 
 	// 删除对局数据

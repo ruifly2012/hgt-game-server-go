@@ -37,8 +37,8 @@ var Manager = ClientManager{
 // 服务
 func Server(c *gin.Context) {
 	//解析一个连接
-	conn, error := (&websocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}).Upgrade(c.Writer, c.Request, nil)
-	if error != nil {
+	conn, err := (&websocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}).Upgrade(c.Writer, c.Request, nil)
+	if err != nil {
 		http.NotFound(c.Writer, c.Request)
 		return
 	}
@@ -49,8 +49,8 @@ func Server(c *gin.Context) {
 			Code:     401,
 		}
 		res, _ := proto.Marshal(baseMessage)
-		conn.WriteMessage(websocket.BinaryMessage, res)
-		conn.Close()
+		_ = conn.WriteMessage(websocket.BinaryMessage, res)
+		_ = conn.Close()
 		return
 	}
 	// 解析token
@@ -61,8 +61,8 @@ func Server(c *gin.Context) {
 			Code:     401,
 		}
 		res, _ := proto.Marshal(baseMessage)
-		conn.WriteMessage(websocket.BinaryMessage, res)
-		conn.Close()
+		_ = conn.WriteMessage(websocket.BinaryMessage, res)
+		_ = conn.Close()
 		return
 	}
 	go Manager.start()
@@ -96,7 +96,7 @@ func (manager *ClientManager) start() {
 			// 判断用户是否还在
 			if client, ok := manager.clients[c.UserId]; ok {
 				// 旧管道关闭
-				client.socket.Close()
+				_ = client.socket.Close()
 				client.socket = c.socket
 				manager.clients[c.UserId] = client
 			} else {
@@ -106,7 +106,7 @@ func (manager *ClientManager) start() {
 			fmt.Println("新用户加入:"+userInfo.Username, "加入时间："+userInfo.InsertTime, "当前总用户数量：", len(manager.clients))
 		case c := <-manager.unregister: // 离开
 			if nc, ok := manager.clients[c.UserId]; ok {
-				c.socket.Close()
+				_ = c.socket.Close()
 				if nc.socket == c.socket {
 					close(c.Send)
 					delete(manager.clients, c.UserId)
@@ -227,13 +227,13 @@ func (c *Client) read() {
 		// 基础结构体
 		baseMessage := &protobuf.Message{}
 		// proto解码
-		proto.Unmarshal(message, baseMessage)
+		_ = proto.Unmarshal(message, baseMessage)
 		fmt.Println(baseMessage.Protocol)
 		// 找到对应的协议操作
 		if info, ok := ProtocolHandler[baseMessage.Protocol]; ok {
 			c.Protocol = baseMessage.Protocol
 			infoMessage := reflect.New(info.messageType.Elem()).Interface()
-			proto.Unmarshal(baseMessage.Data, infoMessage.(proto.Message))
+			_ = proto.Unmarshal(baseMessage.Data, infoMessage.(proto.Message))
 			userInfo, _ := GetUserInfo(c.UserId)
 			info.messageHandler(userInfo, c, infoMessage)
 		} else {
