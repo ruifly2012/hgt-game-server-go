@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"log"
+	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
@@ -25,7 +25,7 @@ func main() {
 	// 监听服务
 	go func() {
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("Listen:%s\n", err)
+			fmt.Printf("Listen:%s\n", err)
 		}
 	}()
 	// go g.Run(":8899")
@@ -33,15 +33,15 @@ func main() {
 	quit := make(chan os.Signal)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
-	log.Println("shutdown server...")
+	fmt.Println("shutdown server...")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	if err := server.Shutdown(ctx); err != nil {
 		// 优雅关服
-		log.Fatal("server shutdown: ", err)
+		fmt.Println("server shutdown: ", err)
 	}
 
-	log.Println("server exiting...")
+	fmt.Println("server exiting...")
 
 }
