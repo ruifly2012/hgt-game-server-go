@@ -3,10 +3,13 @@ package websocket
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/orcaman/concurrent-map"
+	"math/rand"
 	"server/app"
 	model "server/model/mysql"
 	"server/protobuf"
+	"time"
+
+	"github.com/orcaman/concurrent-map"
 )
 
 // 玩家状态 1:闲置 2:在房间 3:准备中 4:游戏中
@@ -462,6 +465,8 @@ func Prepare(user UserInfo, c *Client, msg interface{}) {
 						Content:  question.Content,
 					})
 				}
+				// 自动选题
+				go AutoSelectQuestion(user, c, questionList)
 				// 所有玩家已经准备完毕 推送玩家进入游戏
 				for userId, info := range room.GetRoomMemberInfoMap() {
 					// 将玩家改成游戏中状态
@@ -621,6 +626,18 @@ func SelectQuestion(user UserInfo, c *Client, msg interface{}) {
 		}
 		return
 	}
+}
+
+// 自动选题
+func AutoSelectQuestion(user UserInfo, c *Client, questionList []model.Question) {
+	fmt.Println(time.Now().Format("2006-01-02 15:04:05"))
+	selQuestion := questionList[rand.Intn(len(questionList))]
+	timeAfterTrigger := time.After(time.Second * 20)
+	curTime, _ := <-timeAfterTrigger
+	SelectQuestion(user, c, &protobuf.SelectQuestionReq{
+		Id: selQuestion.QuestionId,
+	})
+	fmt.Println(curTime.Format("2006-01-02 15:04:05"))
 }
 
 // 换房主
