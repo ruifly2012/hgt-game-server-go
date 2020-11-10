@@ -456,6 +456,14 @@ func Prepare(user UserInfo, c *Client, msg interface{}) {
 					}
 					_ = app.DB.NotIn("question_id", unQuestionIds).Limit(10).Find(&questionList)
 				}
+				// 没有多余的题目
+				if len(questionList) == 0 {
+					c.Send <- map[string]interface{}{
+						"protocol": ProtocolPrepareRes,
+						"code":     CodeNoMoreQuestion,
+					}
+					return
+				}
 				// 处理问题列表
 				for _, question := range questionList {
 					questionResList = append(questionResList, &protobuf.QuestionRes{
@@ -630,6 +638,19 @@ func SelectQuestion(user UserInfo, c *Client, msg interface{}) {
 
 // 自动选题
 func AutoSelectQuestion(roomId string, user UserInfo, c *Client, questionList []model.Question) {
+	defer func() {
+		if err := recover(); err != nil {
+			// 错误记录
+			app.GameServerRecover(err)
+			// 给用户推送500错误
+			c.Send <- map[string]interface{}{
+				"protocol": -c.Protocol,
+				"code":     CodeError,
+			}
+			// 恢复
+			go c.read()
+		}
+	}()
 	// fmt.Println(time.Now().Format("2006-01-02 15:04:05"))
 	selQuestion := questionList[rand.Intn(len(questionList))]
 	timeAfterTrigger := time.After(time.Second * 20)

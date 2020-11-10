@@ -108,4 +108,6 @@ const (
 	CodeQuestionExist = 21200
 	// 不是mc 没有权限选题
 	CodeNotRankToSelectQuestion = 21201
+	// 没有题目
+	CodeNoMoreQuestion = 21202
 )
