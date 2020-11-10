@@ -27,6 +27,8 @@ const (
 type RoomInfo struct {
 	// 房间id
 	RoomId string
+	// 房间名称
+	RoomName string
 	// 房间密码
 	Password string
 	// 房主用户id
@@ -60,6 +62,34 @@ func (rm *RoomManageStruct) GetRoomInfo(roomId string) (RoomInfo, bool) {
 	return RoomInfo{}, false
 }
 
+// 获取所有准备中的房间
+func (rm *RoomManageStruct) GetRoomPrepareList() []*protobuf.RoomPush {
+	var roomList []*protobuf.RoomPush
+	for item := range rm.IterBuffered() {
+		room := item.Val.(RoomInfo)
+		if room.Status == RoomStatusPreparing {
+			roomList = append(roomList, room.ChangeRoomToProtobuf())
+		}
+	}
+
+	return roomList
+}
+
+// 将 自身 roomInfo 转变成 protobuf roomPush
+func (room *RoomInfo) ChangeRoomToProtobuf() *protobuf.RoomPush {
+	var hasPassword bool
+	if room.Password != "" {
+		hasPassword = true
+	}
+
+	return &protobuf.RoomPush{
+		RoomId: room.RoomId,
+		RoomName: room.RoomName,
+		RoomMax: room.Max,
+		RoomMemberNum: uint32(room.Member.Count()),
+		HasPassword: hasPassword,
+	}
+}
 
 // 获取房间成员信息
 func (room *RoomInfo) GetRoomMemberInfoMap() map[string]MemberInfo {
@@ -127,6 +157,7 @@ func CreateRoom(user UserInfo, c *Client, msg interface{}) {
 	})
 	room := RoomInfo{
 		RoomId:      roomId,
+		RoomName:    createRoomReq.Name,
 		Password:    createRoomReq.Password,
 		OwnerUserId: user.UserId,
 		McUserId:    user.UserId,
@@ -173,6 +204,14 @@ func JoinRoom(user UserInfo, c *Client, msg interface{}) {
 			c.Send <- map[string]interface{}{
 				"protocol": ProtocolJoinRoomRes,
 				"code":     CodeRoomAlreadyMax,
+			}
+			return
+		}
+		// 如果房间具备密码 密码不等则不能加入房间
+		if room.Password != "" && joinRoomReq.Password != room.Password {
+			c.Send <- map[string]interface{}{
+				"protocol": ProtocolJoinRoomRes,
+				"code":     CodeJoinRoomFailure,
 			}
 			return
 		}
