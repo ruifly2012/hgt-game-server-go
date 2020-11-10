@@ -466,7 +466,7 @@ func Prepare(user UserInfo, c *Client, msg interface{}) {
 					})
 				}
 				// 自动选题
-				go AutoSelectQuestion(user, c, questionList)
+				go AutoSelectQuestion(room.RoomId, user, c, questionList)
 				// 所有玩家已经准备完毕 推送玩家进入游戏
 				for userId, info := range room.GetRoomMemberInfoMap() {
 					// 将玩家改成游戏中状态
@@ -629,15 +629,20 @@ func SelectQuestion(user UserInfo, c *Client, msg interface{}) {
 }
 
 // 自动选题
-func AutoSelectQuestion(user UserInfo, c *Client, questionList []model.Question) {
-	fmt.Println(time.Now().Format("2006-01-02 15:04:05"))
+func AutoSelectQuestion(roomId string, user UserInfo, c *Client, questionList []model.Question) {
+	// fmt.Println(time.Now().Format("2006-01-02 15:04:05"))
 	selQuestion := questionList[rand.Intn(len(questionList))]
 	timeAfterTrigger := time.After(time.Second * 20)
-	curTime, _ := <-timeAfterTrigger
-	SelectQuestion(user, c, &protobuf.SelectQuestionReq{
-		Id: selQuestion.QuestionId,
-	})
-	fmt.Println(curTime.Format("2006-01-02 15:04:05"))
+	<-timeAfterTrigger
+	room, ok := RoomManage.GetRoomInfo(roomId)
+	// 还在选题中
+	if ok && room.Status == RoomStatusSelectQuestion {
+		fmt.Println("自动选题成功")
+		SelectQuestion(user, c, &protobuf.SelectQuestionReq{
+			Id: selQuestion.QuestionId,
+		})
+	}
+	// fmt.Println(curTime.Format("2006-01-02 15:04:05"))
 }
 
 // 换房主
