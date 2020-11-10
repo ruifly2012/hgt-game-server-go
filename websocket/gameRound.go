@@ -2,13 +2,12 @@ package websocket
 
 import (
 	"container/list"
-	"context"
 	"fmt"
 	"server/app"
-	"server/model/mongo"
 	"server/protobuf"
 	"time"
-	"github.com/orcaman/concurrent-map"
+
+	cmap "github.com/orcaman/concurrent-map"
 )
 
 // 聊天回答 1:未回答 2:不相关 3:是 4:否 5:半对
@@ -99,7 +98,6 @@ func (round *RoundInfo) GetRoundChatMap() map[string]ChatInfo {
 	return chatList
 }
 
-
 // 获取对局一条聊天数据
 func (round *RoundInfo) GetRoundChatInfo(messageId string) (ChatInfo, bool) {
 	if messageInterface, ok := round.ChatList.Get(messageId); ok {
@@ -108,7 +106,6 @@ func (round *RoundInfo) GetRoundChatInfo(messageId string) (ChatInfo, bool) {
 
 	return ChatInfo{}, false
 }
-
 
 // 创建对局
 func (room *RoomInfo) CreateRound() {
@@ -265,7 +262,7 @@ func End(user UserInfo, c *Client, _ interface{}) {
 			return
 		}
 		// 保存数据
-		go round.saveRoundData()
+		go round.SaveRoundData()
 		for userId, member := range room.GetRoomMemberInfoMap() {
 			if userId == room.McUserId {
 				member.Status = MemberStatusPreparing
@@ -288,40 +285,10 @@ func End(user UserInfo, c *Client, _ interface{}) {
 						Status:      RoomStatusPreparing,
 						SeatsChange: room.GetRoomMemberList(),
 						RoomId:      user.RoomId,
-						Question: 	 room.Question.ChangeChatToProtobuf(),
+						Question:    room.Question.ChangeChatToProtobuf(),
 					},
 				}
 			}
 		}
 	}
-}
-
-// 保存游戏对局数据
-func (round *RoundInfo) saveRoundData() {
-	// 记录对局数据
-	roundRecord := make(map[string]interface{})
-	roundRecord["RoomId"] = round.RoomId
-	roundRecord["McUserId"] = round.McUserId
-	roundRecord["QuestionId"] = round.QuestionId
-	memberList := make(map[string]interface{})
-	for userId, member := range round.GetRoundMemberInfoMap() {
-		memberList[userId] = member
-	}
-	roundRecord["Member"] = memberList
-	roundId, _ := mongo.RoundRecord().InsertOne(context.TODO(), roundRecord)
-	// 记录聊天数据
-	chatList := make(map[string]interface{})
-	for messageId, message := range round.GetRoundChatMap() {
-		chatList[messageId] = message
-	}
-	roundChat := map[string]interface{}{
-		"roundId":  roundId, // 记录对局的mongoId
-		"roomId":   round.RoomId,
-		"chatList": chatList,
-	}
-	_, _ = mongo.RoundChat().InsertOne(context.TODO(), roundChat)
-	// @todo 记录笔记数据
-
-	// 删除对局数据
-	RoundManage.Remove(round.RoomId)
 }
